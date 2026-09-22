@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Lieu from "@/components/Lieu";
@@ -15,7 +16,9 @@ import DevChecks from "@/components/DevChecks";
 export default function Home() {
   return (
     <>
-      <Header />
+      <Suspense>
+        <Header />
+      </Suspense>
       <main>
         <Hero />
         <Lieu />
