@@ -167,7 +167,7 @@ function PartnerCard({ partner }: { partner: PartnerRow }) {
   const card = (
     <article className="bg-white border border-zinc-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-zinc-300 transition-all group">
       {/* Photo de couverture */}
-      <div className="relative h-44 bg-zinc-100">
+      <div className="relative h-32 sm:h-44 bg-zinc-100">
         {partner.cover_photo ? (
           <img
             src={partner.cover_photo}
