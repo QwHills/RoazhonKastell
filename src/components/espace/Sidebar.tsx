@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/supabase/types";
+
+interface NavGroup {
+  label?: string;
+  items: NavItem[];
+}
 
 interface NavItem {
   label: string;
@@ -11,122 +17,145 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-function getNavItems(profile: Profile): NavItem[] {
-  const items: NavItem[] = [];
+function getNavGroups(profile: Profile): NavGroup[] {
+  const groups: NavGroup[] = [];
   const roles = profile.roles;
 
-  items.push({
-    label: "Tableau de bord",
-    href: "/espace",
-    icon: <HomeIcon />,
-  });
-
-  items.push({
-    label: "Mon profil",
-    href: "/espace/profil",
-    icon: <UserIcon />,
+  groups.push({
+    items: [
+      { label: "Tableau de bord", href: "/espace", icon: <HomeIcon /> },
+      { label: "Mon profil", href: "/espace/profil", icon: <UserIcon /> },
+    ],
   });
 
   if (roles.includes("adherent") || roles.includes("admin")) {
-    items.push({
-      label: "Partager un bien",
-      href: "/espace/biens",
-      icon: <BuildingIcon />,
+    groups.push({
+      label: "Réseau",
+      items: [
+        { label: "Mes biens", href: "/espace/biens", icon: <BuildingIcon /> },
+        { label: "Recherches", href: "/espace/recherches", icon: <SearchIcon /> },
+        { label: "Boîte à idées", href: "/espace/idees", icon: <LightbulbIcon /> },
+        { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
+      ],
     });
-
-    items.push({
-      label: "Recherches acquéreurs",
-      href: "/espace/recherches",
-      icon: <SearchIcon />,
-    });
-
-    items.push({
-      label: "Boîte à idées",
-      href: "/espace/idees",
-      icon: <LightbulbIcon />,
+  } else {
+    groups.push({
+      label: "Réseau",
+      items: [
+        { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
+      ],
     });
   }
 
+  const adminItems: NavItem[] = [];
+  if (roles.includes("gestionnaire_membres") || roles.includes("admin")) {
+    adminItems.push({ label: "Membres", href: "/espace/membres", icon: <UsersIcon /> });
+  }
   if (
     roles.includes("gestionnaire_membres") ||
+    roles.includes("partenaire") ||
     roles.includes("admin")
   ) {
-    items.push({
-      label: "Gestion des membres",
-      href: "/espace/membres",
-      icon: <UsersIcon />,
-    });
-  }
-
-  if (
-    roles.includes("gestionnaire_evenements") ||
-    roles.includes("admin")
-  ) {
-    items.push({
-      label: "Gestion des événements",
-      href: "/espace/evenements",
-      icon: <CalendarIcon />,
-    });
-  }
-
-  if (
-    roles.includes("gestionnaire_membres") ||
-    roles.includes("admin")
-  ) {
-    items.push({
-      label: "Gestion partenaires",
+    adminItems.push({
+      label: roles.includes("partenaire") && !roles.includes("gestionnaire_membres") && !roles.includes("admin")
+        ? "Ma fiche"
+        : "Partenaires",
       href: "/espace/partenaires",
       icon: <BriefcaseIcon />,
     });
   }
-
-  items.push({
-    label: "Ressources",
-    href: "/espace/ressources",
-    icon: <FolderIcon />,
-  });
-
+  if (roles.includes("gestionnaire_evenements") || roles.includes("admin")) {
+    adminItems.push({ label: "Biens du mardi", href: "/espace/mardi-biens", icon: <BuildingIcon /> });
+    adminItems.push({ label: "Événements", href: "/espace/evenements", icon: <CalendarIcon /> });
+  }
+  if (roles.includes("membre_executif") || roles.includes("associe") || roles.includes("admin")) {
+    adminItems.push({ label: "Réunions", href: "/espace/reunions", icon: <ClipboardIcon /> });
+  }
   if (roles.includes("associe") || roles.includes("admin")) {
-    items.push({
-      label: "Finances",
-      href: "/espace/finances",
-      icon: <ChartIcon />,
-    });
+    adminItems.push({ label: "Finances", href: "/espace/finances", icon: <ChartIcon /> });
+  }
+  if (adminItems.length > 0) {
+    groups.push({ label: "Gestion", items: adminItems });
   }
 
-  return items;
+  return groups;
 }
 
 export default function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const navItems = getNavItems(profile);
+  const navGroups = getNavGroups(profile);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
+
+  const initials = `${(profile.first_name || "")[0] || ""}${(profile.last_name || "")[0] || ""}`.toUpperCase();
 
   const nav = (
-    <nav className="flex flex-col gap-1 p-4">
-      {navItems.map((item) => {
-        const isActive =
-          item.href === "/espace"
-            ? pathname === "/espace"
-            : pathname.startsWith(item.href);
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+        {navGroups.map((group, gi) => (
+          <div key={gi}>
+            {group.label && (
+              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-300">
+                {group.label}
+              </p>
+            )}
+            <nav className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const isActive =
+                  item.href === "/espace"
+                    ? pathname === "/espace"
+                    : pathname.startsWith(item.href);
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-            }`}
-          >
-            <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-zinc-900 text-white"
+                        : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+                    }`}
+                  >
+                    <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom: user card + logout */}
+      <div className="border-t border-zinc-100 p-3">
+        <div className="flex items-center gap-3 px-3 py-3">
+          <div className="w-9 h-9 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-900 truncate">
+              {profile.first_name} {profile.last_name}
+            </p>
+            <p className="text-[11px] text-zinc-400 truncate">{profile.email}</p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
+          Déconnexion
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -156,17 +185,17 @@ export default function Sidebar({ profile }: { profile: Profile }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-zinc-200 transform transition-transform lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-zinc-100 transform transition-transform lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-6 border-b border-zinc-100">
-          <Link href="/" className="text-lg font-bold text-zinc-900">
-            Roazhon Kastell
+        <div className="px-6 py-5 border-b border-zinc-100">
+          <Link href="/" className="flex flex-col">
+            <span className="text-lg font-bold text-zinc-900 tracking-tight">Roazhon Kastell</span>
+            <span className="text-[11px] text-zinc-400 font-medium tracking-wide -mt-0.5">
+              Espace membre
+            </span>
           </Link>
-          <p className="text-xs text-zinc-400 mt-1">
-            {profile.first_name} {profile.last_name}
-          </p>
         </div>
         {nav}
       </aside>
@@ -234,6 +263,13 @@ function FolderIcon() {
   return (
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+    </svg>
+  );
+}
+function ClipboardIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
     </svg>
   );
 }

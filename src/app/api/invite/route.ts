@@ -3,6 +3,8 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import type { UserRole } from "@/lib/supabase/types";
 
+const DEFAULT_PASSWORD = process.env.PARTNER_DEFAULT_PASSWORD || "Roazhonkastell35";
+
 export async function POST(request: Request) {
   const supabase = await createServerClient();
   const {
@@ -37,21 +39,34 @@ export async function POST(request: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  const { data: inviteData, error: inviteError } =
-    await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`,
-    });
+  // Vérifier si le compte existe déjà
+  const { data: existingUsers } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const existing = existingUsers?.users?.find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase(),
+  );
 
-  if (inviteError) {
-    return NextResponse.json({ error: inviteError.message }, { status: 400 });
+  if (existing) {
+    return NextResponse.json({ error: "Un compte existe déjà avec cet email." }, { status: 400 });
   }
 
-  if (inviteData.user) {
+  const { data: createData, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email: email.toLowerCase(),
+      password: DEFAULT_PASSWORD,
+      email_confirm: true,
+      user_metadata: { first_name: firstName || "", last_name: lastName || "" },
+    });
+
+  if (createError) {
+    return NextResponse.json({ error: createError.message }, { status: 400 });
+  }
+
+  if (createData.user) {
     await adminClient.from("profiles").update({
       first_name: firstName || "",
       last_name: lastName || "",
-      member_status: "en_attente",
-    }).eq("id", inviteData.user.id);
+      member_status: "actif",
+    }).eq("id", createData.user.id);
   }
 
   return NextResponse.json({ success: true });

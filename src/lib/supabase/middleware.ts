@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/", "/auth/callback", "/auth/confirm"];
+const PUBLIC_PREFIXES = ["/conseillers", "/partenaires", "/agenda"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,6 +35,7 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic =
     PUBLIC_PATHS.includes(path) ||
+    PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
     path.startsWith("/_next") ||
     path.startsWith("/api") ||
     path.match(/\.\w+$/);

@@ -3,6 +3,7 @@ export type UserRole =
   | "partenaire"
   | "gestionnaire_membres"
   | "gestionnaire_evenements"
+  | "membre_executif"
   | "associe"
   | "admin";
 
@@ -30,6 +31,9 @@ export interface Profile {
   specialties: string[] | null;
   roles: UserRole[];
   member_status: MemberStatus;
+  cotisation_mensuelle: number | null;
+  date_adhesion: string | null;
+  jour_prelevement: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +53,10 @@ export interface Partner {
   photos: string[] | null;
   remuneration: boolean;
   internal_conditions: string | null;
+  cotisation_montant: number | null;
+  cotisation_frequence: "mensuel" | "annuel" | null;
+  cotisation_debut: string | null;
+  jour_prelevement: number | null;
   status: PartnerStatus;
   published_version_id: string | null;
   created_by: string | null;
@@ -213,9 +221,31 @@ export interface FinancialEntry {
   payment_status: PaymentStatus;
   related_profile_id: string | null;
   related_partner_id: string | null;
+  recurrence: "mensuel" | "ponctuel";
   receipt_url: string | null;
   notes: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Meeting {
+  id: string;
+  title: string;
+  meeting_date: string;
+  summary: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingTodo {
+  id: string;
+  meeting_id: string | null;
+  title: string;
+  assigned_to: string | null;
+  due_date: string | null;
+  done: boolean;
   created_at: string;
   updated_at: string;
 }

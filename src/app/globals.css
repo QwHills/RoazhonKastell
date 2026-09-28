@@ -21,3 +21,52 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+.event-photo {
+  aspect-ratio: 16/10;
+}
+
+@media (min-width: 640px) {
+  .event-photo {
+    width: 45%;
+    aspect-ratio: auto;
+  }
+}
+
+/* Article editorial layout */
+.article-lead {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: #3f3f46;
+}
+
+.article-lead p {
+  margin: 0;
+}
+
+.article-body {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: #52525b;
+}
+
+.article-body p {
+  margin-bottom: 1.25rem;
+}
+
+.article-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Mobile TOC toggle */
+.article-toc-summary {
+  list-style: none;
+}
+
+.article-toc-summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] .article-toc-chevron {
+  transform: rotate(180deg);
+}

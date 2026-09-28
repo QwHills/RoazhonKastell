@@ -9,6 +9,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   partenaire: "Partenaire",
   gestionnaire_membres: "Gestion membres",
   gestionnaire_evenements: "Gestion événements",
+  membre_executif: "Membre exécutif",
   associe: "Associé",
   admin: "Administrateur",
 };
@@ -30,6 +31,7 @@ const ALL_ROLES: UserRole[] = [
   "partenaire",
   "gestionnaire_membres",
   "gestionnaire_evenements",
+  "membre_executif",
   "associe",
   "admin",
 ];
@@ -50,12 +52,19 @@ export default function MembresClient({
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMessage, setInviteMessage] = useState("");
 
-  const filtered = members.filter((m) => {
-    const name = `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase();
-    const matchesSearch = search === "" || name.includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "" || m.member_status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filtered = members
+    .filter((m) => {
+      const name = `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase();
+      const matchesSearch = search === "" || name.includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "" || m.member_status === statusFilter;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      const firstA = (a.first_name || "").toLowerCase();
+      const firstB = (b.first_name || "").toLowerCase();
+      if (firstA !== firstB) return firstA.localeCompare(firstB, "fr");
+      return (a.last_name || "").toLowerCase().localeCompare((b.last_name || "").toLowerCase(), "fr");
+    });
 
   const counts = {
     total: members.length,
@@ -63,6 +72,10 @@ export default function MembresClient({
     en_attente: members.filter((m) => m.member_status === "en_attente").length,
     inactif: members.filter((m) => m.member_status === "inactif").length,
   };
+
+  const totalCotisations = members
+    .filter((m) => m.member_status === "actif" && m.cotisation_mensuelle)
+    .reduce((sum, m) => sum + (m.cotisation_mensuelle || 0), 0);
 
   async function updateMember(id: string, updates: Partial<Profile>) {
     const supabase = createClient();
@@ -74,6 +87,28 @@ export default function MembresClient({
     setMembers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     );
+    setEditingId(null);
+  }
+
+  async function deleteMember(id: string) {
+    const member = members.find((m) => m.id === id);
+    if (!member) return;
+    const confirmed = confirm(
+      `Supprimer définitivement ${member.first_name} ${member.last_name} (${member.email}) ?\n\nCette action est irréversible.`,
+    );
+    if (!confirmed) return;
+
+    const res = await fetch("/api/members", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert("Erreur : " + data.error);
+      return;
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== id));
     setEditingId(null);
   }
 
@@ -118,6 +153,11 @@ export default function MembresClient({
           <p className="text-sm text-zinc-500 mt-1">
             {counts.actif} actif{counts.actif > 1 ? "s" : ""} · {counts.en_attente} en attente · {counts.inactif} inactif{counts.inactif > 1 ? "s" : ""}
           </p>
+          {totalCotisations > 0 && (
+            <p className="text-sm font-medium text-emerald-600 mt-1">
+              {totalCotisations.toLocaleString("fr-FR")} € / mois de cotisations
+            </p>
+          )}
         </div>
         <button
           onClick={() => setInviteOpen(true)}
@@ -162,6 +202,7 @@ export default function MembresClient({
                 onEdit={() => setEditingId(member.id)}
                 onCancel={() => setEditingId(null)}
                 onSave={(updates) => updateMember(member.id, updates)}
+                onDelete={() => deleteMember(member.id)}
               />
             ))}
           </div>
@@ -242,15 +283,24 @@ function MemberRow({
   onEdit,
   onCancel,
   onSave,
+  onDelete,
 }: {
   member: Profile;
   isEditing: boolean;
   onEdit: () => void;
   onCancel: () => void;
   onSave: (updates: Partial<Profile>) => void;
+  onDelete: () => void;
 }) {
   const [roles, setRoles] = useState<UserRole[]>(member.roles);
   const [status, setStatus] = useState<MemberStatus>(member.member_status);
+  const [cotisation, setCotisation] = useState<string>(
+    member.cotisation_mensuelle != null ? String(member.cotisation_mensuelle) : "",
+  );
+  const [dateAdhesion, setDateAdhesion] = useState<string>(member.date_adhesion || "");
+  const [jourPrelevement, setJourPrelevement] = useState<string>(
+    member.jour_prelevement != null ? String(member.jour_prelevement) : "",
+  );
 
   function toggleRole(role: UserRole) {
     setRoles((prev) =>
@@ -271,15 +321,24 @@ function MemberRow({
             </span>
           </div>
           <p className="text-sm text-zinc-500 mt-0.5">{member.email}</p>
-          {member.roles.length > 0 && !isEditing && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {member.roles.map((role) => (
-                <span key={role} className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs">
-                  {ROLE_LABELS[role]}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {!isEditing && member.roles.map((role) => (
+              <span key={role} className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs">
+                {ROLE_LABELS[role]}
+              </span>
+            ))}
+            {!isEditing && member.cotisation_mensuelle != null && member.cotisation_mensuelle > 0 && (
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium">
+                {member.cotisation_mensuelle} € / mois
+                {member.jour_prelevement && ` (le ${member.jour_prelevement})`}
+              </span>
+            )}
+            {!isEditing && member.date_adhesion && (
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs">
+                Depuis le {new Date(member.date_adhesion).toLocaleDateString("fr-FR")}
+              </span>
+            )}
+          </div>
         </div>
         {!isEditing && (
           <button
@@ -305,6 +364,53 @@ function MemberRow({
               <option value="inactif">Inactif</option>
             </select>
           </div>
+          {member.roles.includes("partenaire") ? (
+            <div className="mb-4 p-3 bg-blue-50 rounded-xl">
+              <p className="text-sm text-zinc-600">
+                La cotisation de ce partenaire se gère depuis la page{" "}
+                <a href="/espace/partenaires" className="text-blue-600 font-medium hover:underline">Partenaires</a>.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Cotisation (€/mois)</label>
+                <select
+                  value={cotisation}
+                  onChange={(e) => setCotisation(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-zinc-200 text-sm w-full bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                >
+                  <option value="">Aucune</option>
+                  <option value="19.99">19,99 €</option>
+                  <option value="40">40 €</option>
+                  <option value="80">80 €</option>
+                  <option value="100">100 €</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Jour de prélèvement</label>
+                <select
+                  value={jourPrelevement}
+                  onChange={(e) => setJourPrelevement(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-zinc-200 text-sm w-full bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                >
+                  <option value="">Non défini</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>Le {d}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Date d&apos;adhésion</label>
+                <input
+                  type="date"
+                  value={dateAdhesion}
+                  onChange={(e) => setDateAdhesion(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-zinc-200 text-sm w-full focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+            </div>
+          )}
           <div className="mb-4">
             <label className="block text-sm font-medium text-zinc-700 mb-2">Rôles</label>
             <div className="flex flex-wrap gap-2">
@@ -324,7 +430,7 @@ function MemberRow({
               ))}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={onCancel}
               className="px-4 py-2 border border-zinc-200 rounded-xl text-sm hover:bg-zinc-50"
@@ -332,10 +438,22 @@ function MemberRow({
               Annuler
             </button>
             <button
-              onClick={() => onSave({ roles, member_status: status })}
+              onClick={() => onSave({
+                roles,
+                member_status: status,
+                cotisation_mensuelle: cotisation ? parseFloat(cotisation) : null,
+                date_adhesion: dateAdhesion || null,
+                jour_prelevement: jourPrelevement ? parseInt(jourPrelevement) : null,
+              })}
               className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800"
             >
               Enregistrer
+            </button>
+            <button
+              onClick={onDelete}
+              className="ml-auto px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition-colors"
+            >
+              Supprimer
             </button>
           </div>
         </div>

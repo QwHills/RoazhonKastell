@@ -1,47 +1,130 @@
+import Link from "next/link";
+
 export default function Hero() {
   return (
     <section
       id="accueil"
-      className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-zinc-900"
-      style={{
-        backgroundImage: "url(/chateau.jpg)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      className="relative overflow-hidden bg-zinc-900"
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/45" />
+      {/* Background photo — framed on the château facade */}
+      <div
+        className="absolute inset-0 bg-cover"
+        style={{
+          backgroundImage: "url(/chateau-drone.jpg)",
+          backgroundPosition: "center center",
+        }}
+      />
+
+      {/* Gradient — stronger on the left for text readability, light elsewhere */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 40%, transparent 65%)",
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 50%, transparent 80%)",
+        }}
+      />
+
+      {/* Header spacer */}
+      <div className="h-[72px]" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight drop-shadow-lg">
-          Le château qui connecte
-          <br />
-          les conseillers IAD
-        </h1>
-        <p className="mt-8 text-lg sm:text-xl text-white/90 leading-relaxed max-w-3xl mx-auto drop-shadow-md">
-          Roazhon Kastell est un pôle de formation IAD et un lieu associatif à Rennes.
-          On s&apos;y retrouve entre conseillers IAD pour travailler, se former,
-          échanger et partager du business ensemble — avec coworking, networking
-          et événements (afterworks, formations, soirées networking). Rejoignez une communauté active.
-        </p>
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href="#adhesions"
-            className="w-full sm:w-auto px-8 py-4 bg-white text-zinc-900 font-semibold rounded-3xl hover:bg-zinc-100 transition-colors text-center shadow-lg"
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 pt-8 sm:pt-10 lg:pt-12 pb-16 sm:pb-20 lg:pb-24">
+        <div className="max-w-xl">
+          <h1
+            className="font-bold text-white tracking-tight"
+            style={{
+              fontSize: "clamp(2rem, 4.2vw, 3.75rem)",
+              lineHeight: 1.1,
+            }}
           >
-            Voir les adhésions
-          </a>
-          <a
-            href="#adherents"
-            className="w-full sm:w-auto px-8 py-4 bg-white/15 text-white font-semibold rounded-3xl hover:bg-white/25 backdrop-blur-sm transition-colors text-center border border-white/30"
+            Un lieu. Un réseau.
+            <br />
+            Des projets.
+          </h1>
+          <p
+            className="text-white max-w-md"
+            style={{
+              fontSize: "clamp(0.95rem, 1.4vw, 1.2rem)",
+              marginTop: "0.875rem",
+              lineHeight: 1.5,
+            }}
           >
-            Nos conseillers
-          </a>
+            Conseillers IAD et partenaires, réunis à Rennes.
+          </p>
+          <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3">
+            {/* Primary — dark translucent with white border */}
+            <Link
+              href="/#lieu"
+              className="inline-flex items-center justify-center gap-2.5 py-3 px-6 font-semibold rounded-full text-base text-white border border-white/30 hover:bg-white/15 active:bg-white/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              style={{
+                background: "rgba(0, 0, 0, 0.35)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+              }}
+            >
+              Découvrir le château
+              <svg
+                className="w-4 h-4 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                />
+              </svg>
+            </Link>
+            {/* Secondary — white solid */}
+            <Link
+              href="/#adhesions"
+              className="inline-flex items-center justify-center gap-2.5 py-3 px-6 bg-white text-zinc-900 font-semibold rounded-full text-base hover:bg-zinc-100 active:bg-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              Devenir adhérent
+            </Link>
+          </div>
         </div>
-        <p className="mt-10 text-sm text-zinc-300">
-          Association loi 1901 &bull; Pôle de formation IAD &bull; Rennes &amp; alentours
-        </p>
+      </div>
+
+      {/* Location badge — large screens only */}
+      <div
+        className="hidden lg:flex absolute bottom-4 right-6 xl:right-8 z-10 items-center gap-2 rounded-full px-3.5 py-2 border border-white/20"
+        style={{
+          background: "rgba(255, 255, 255, 0.12)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+        }}
+      >
+        <svg
+          className="w-3.5 h-3.5 text-white/70"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+          />
+        </svg>
+        <span className="text-xs text-white/80 font-medium">
+          Château de caractère aux portes de Rennes
+        </span>
       </div>
     </section>
   );

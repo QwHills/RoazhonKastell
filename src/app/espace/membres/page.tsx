@@ -3,6 +3,8 @@ import { getCurrentUser, canManageMembers } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import MembresClient from "./MembresClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function MembresPage() {
   const profile = await getCurrentUser();
   if (!profile) redirect("/?login=1");
@@ -12,7 +14,8 @@ export default async function MembresPage() {
   const { data: members } = await supabase
     .from("profiles")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true });
 
   return <MembresClient members={members || []} />;
 }
