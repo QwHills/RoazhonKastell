@@ -5,6 +5,7 @@ import Hero from "@/components/Hero";
 import Lieu from "@/components/Lieu";
 import Adhesions from "@/components/Adhesions";
 import Contact from "@/components/Contact";
+import Videos from "@/components/Videos";
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/server";
 import { staticArticles } from "@/lib/articles-data";
@@ -22,6 +23,7 @@ export default function Home() {
         <DiscoverCards />
         <EventSection />
         <ActualitesSection />
+        <Videos />
         <Lieu />
         <Adhesions />
         <Contact />

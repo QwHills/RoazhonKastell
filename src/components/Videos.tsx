@@ -11,6 +11,18 @@ interface Video {
 
 const videos: Video[] = [
   {
+    titre: "+100 ventes : l'incroyable parcours d'Aurélie Peltier",
+    description: "Elle ne voulait pas travailler dans l'immobilier. Aujourd'hui, elle a dépassé les 100 ventes. Retour sur un parcours hors du commun.",
+    youtubeId: "x4JFoSnqUrg",
+    auteur: "Aurélie Peltier",
+  },
+  {
+    titre: "Ancien cavalier pro, aujourd'hui entrepreneur",
+    description: "Entre les deux ? Un mindset hors norme. Hugo Prin, ancien cavalier professionnel devenu entrepreneur, partage son parcours atypique.",
+    youtubeId: "VIpuQLvFqsk",
+    auteur: "Hugo Prin",
+  },
+  {
     titre: "De soldat à leader international",
     description: "Comment il a bâti une équipe de 85 personnes. Un parcours inspirant, de l'armée au leadership dans l'immobilier.",
     youtubeId: "SbLDu_e5IUg",
@@ -23,22 +35,15 @@ const videos: Video[] = [
     auteur: "Florian Morgant",
   },
   {
-    titre: "Ancien cavalier pro, aujourd'hui entrepreneur",
-    description: "Entre les deux ? Un mindset hors norme. Hugo Prin, ancien cavalier professionnel devenu entrepreneur, partage son parcours atypique.",
-    youtubeId: "VIpuQLvFqsk",
-    auteur: "Hugo Prin",
-  },
-  {
     titre: "Elle a eu le courage d'entreprendre à 22 ans",
     description: "Océane Pirault, conseillère IAD, partage son parcours et son courage d'entreprendre à seulement 22 ans.",
     youtubeId: "IKgsRVcrWM4",
     auteur: "Océane Pirault",
   },
   {
-    titre: "De salariée à conseillère indépendante",
-    description: "Aurélie Peltier, conseillère IAD, raconte comment elle a quitté le salariat pour se lancer dans l'immobilier en toute indépendance.",
-    youtubeId: "x4JFoSnqUrg",
-    auteur: "Aurélie Peltier",
+    titre: "Présentation du Roazhon Kastell",
+    description: "Découvrez le château qui connecte les conseillers IAD à Rennes. Un lieu unique dédié au réseau et au partage.",
+    youtubeId: "bxo24Gkrj1E",
   },
 ];
 
