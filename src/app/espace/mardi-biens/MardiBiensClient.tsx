@@ -121,6 +121,19 @@ export default function MardiBiensClient() {
     setActing(false);
   }
 
+  async function resetSession() {
+    if (!session || acting) return;
+    if (!confirm("Remettre la séance en préparation ?\n\nTous les biens seront réinitialisés.")) return;
+    setActing(true);
+    await fetch("/api/mardi/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reset", sessionId: session.id }),
+    });
+    await fetchSession();
+    setActing(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -209,13 +222,25 @@ export default function MardiBiensClient() {
               </button>
             )}
             {session.status === "completed" && (
-              <button
-                onClick={resumeSession}
-                disabled={acting}
-                className="inline-flex items-center gap-2 px-5 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
-              >
-                Remettre en préparation
-              </button>
+              <>
+                <button
+                  onClick={resumeSession}
+                  disabled={acting}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                  </svg>
+                  Reprendre la séance
+                </button>
+                <button
+                  onClick={resetSession}
+                  disabled={acting}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
+                >
+                  Reprendre du début
+                </button>
+              </>
             )}
           </div>
 

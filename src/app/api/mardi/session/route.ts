@@ -117,6 +117,18 @@ export async function POST(request: Request) {
     }
     const { error } = await admin
       .from("tuesday_sessions")
+      .update({ status: "active", completed_at: null })
+      .eq("id", sessionId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "reset") {
+    if (!canManageEvents(profile)) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
+    const { error } = await admin
+      .from("tuesday_sessions")
       .update({ status: "preparation", started_at: null, completed_at: null, current_property_id: null })
       .eq("id", sessionId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
