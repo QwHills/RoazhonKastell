@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getCurrentUser, hasRole, canManageMembers } from "@/lib/supabase/auth";
 import { createClient } from "@supabase/supabase-js";
 
@@ -148,6 +149,9 @@ export async function POST(request: Request) {
       );
     }
   }
+
+  revalidatePath("/partenaires");
+  if (slug) revalidatePath(`/partenaires/${slug}`);
 
   return NextResponse.json({ ok: true, slug });
 }
