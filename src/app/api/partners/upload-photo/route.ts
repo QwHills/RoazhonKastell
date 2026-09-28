@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, hasRole } from "@/lib/supabase/auth";
+import { getCurrentUser, hasRole, canManageMembers } from "@/lib/supabase/auth";
 import { createClient } from "@supabase/supabase-js";
 
 function getAdminClient() {
@@ -12,7 +12,14 @@ function getAdminClient() {
 
 export async function POST(request: Request) {
   const profile = await getCurrentUser();
-  if (!profile || !hasRole(profile, "partenaire")) {
+  if (!profile) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const isManager = canManageMembers(profile);
+  const isPartner = hasRole(profile, "partenaire");
+
+  if (!isManager && !isPartner) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
@@ -37,15 +44,17 @@ export async function POST(request: Request) {
 
   const admin = getAdminClient();
 
-  const { data: membership } = await admin
-    .from("partner_members")
-    .select("partner_id")
-    .eq("user_id", profile.id)
-    .eq("partner_id", partnerId)
-    .single();
+  if (!isManager) {
+    const { data: membership } = await admin
+      .from("partner_members")
+      .select("partner_id")
+      .eq("user_id", profile.id)
+      .eq("partner_id", partnerId)
+      .single();
 
-  if (!membership) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    if (!membership) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
   }
 
   const ext = file.name.split(".").pop() || "jpg";
@@ -76,7 +85,14 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const profile = await getCurrentUser();
-  if (!profile || !hasRole(profile, "partenaire")) {
+  if (!profile) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const isManager = canManageMembers(profile);
+  const isPartner = hasRole(profile, "partenaire");
+
+  if (!isManager && !isPartner) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
@@ -87,15 +103,17 @@ export async function DELETE(request: Request) {
 
   const admin = getAdminClient();
 
-  const { data: membership } = await admin
-    .from("partner_members")
-    .select("partner_id")
-    .eq("user_id", profile.id)
-    .eq("partner_id", partnerId)
-    .single();
+  if (!isManager) {
+    const { data: membership } = await admin
+      .from("partner_members")
+      .select("partner_id")
+      .eq("user_id", profile.id)
+      .eq("partner_id", partnerId)
+      .single();
 
-  if (!membership) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    if (!membership) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    }
   }
 
   const url = new URL(filePath);
