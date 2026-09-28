@@ -51,7 +51,7 @@ const partenairePlans = [
       "Présence aux événements",
     ],
     cta: "Devenir partenaire",
-    href: "#contact",
+    href: "mailto:roazhonkastell@gmail.com?subject=Demande%20de%20partenariat%20%E2%80%93%20Partenaire%20local&body=Bonjour%2C%0A%0AJe%20souhaite%20devenir%20partenaire%20local%20du%20Roazhon%20Kastell.%0A%0AMerci%20de%20me%20recontacter.%0A%0ACordialement",
     featured: false,
     icon: (
       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -69,7 +69,7 @@ const partenairePlans = [
       "Accès complet aux événements",
     ],
     cta: "Choisir cette formule",
-    href: "#contact",
+    href: "mailto:roazhonkastell@gmail.com?subject=Demande%20de%20partenariat%20%E2%80%93%20Partenaire%20%2B%20bureau&body=Bonjour%2C%0A%0AJe%20souhaite%20devenir%20partenaire%20avec%20bureau%20au%20Roazhon%20Kastell.%0A%0AMerci%20de%20me%20recontacter.%0A%0ACordialement",
     featured: false,
     icon: (
       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
