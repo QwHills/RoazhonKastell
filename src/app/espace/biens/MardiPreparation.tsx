@@ -33,7 +33,7 @@ export default function MardiPreparation({
   const [acting, setActing] = useState<string | null>(null);
 
   const fetchSession = useCallback(async () => {
-    const res = await fetch("/api/mardi/session");
+    const res = await fetch("/api/mardi/session?role=conseiller");
     if (res.ok) {
       const data = await res.json();
       setSessionId(data.session.id);
