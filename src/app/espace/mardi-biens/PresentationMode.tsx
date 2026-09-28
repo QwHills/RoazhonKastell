@@ -95,8 +95,11 @@ function PropertyMap({ lat, lng }: { lat: number; lng: number }) {
       };
       if (!L || !mapRef.current) return;
       const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false }).setView([lat, lng], 15);
-      L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+      const key = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
+      L.tileLayer(`https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=${key}`, {
         maxZoom: 20,
+        tileSize: 512,
+        zoomOffset: -1,
       }).addTo(map);
       L.marker([lat, lng]).addTo(map);
       leafletRef.current = map;
