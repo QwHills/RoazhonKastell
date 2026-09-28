@@ -16,6 +16,7 @@ export interface StaticArticle {
   excerpt: string;
   image_url: string;
   image_alt: string;
+  image_position?: string;
   content: string;
   published_at: string;
   cta: { label: string; href: string };
@@ -120,6 +121,7 @@ export const staticArticles: StaticArticle[] = [
     image_url: "/articles/photos-immobilieres.jpg",
     image_alt:
       "Vue aérienne du château et de l'étang",
+    image_position: "center 70%",
     published_at: "2026-09-23T10:00:00+02:00",
     cta: { label: "Découvrir les prochains ateliers", href: "/agenda" },
     ctaPhrase: "Envie d'aller plus loin ?",

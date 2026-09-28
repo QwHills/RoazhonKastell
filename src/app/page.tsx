@@ -241,6 +241,7 @@ async function ActualitesSection() {
     category: string | null;
     excerpt: string | null;
     image_url: string | null;
+    image_position?: string;
   }[] = [];
 
   try {
@@ -264,6 +265,7 @@ async function ActualitesSection() {
       category: a.category,
       excerpt: a.excerpt,
       image_url: a.image_url,
+      image_position: a.image_position,
     }));
   }
 
@@ -313,6 +315,7 @@ async function ActualitesSection() {
                     src={article.image_url}
                     alt=""
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    style={article.image_position ? { objectPosition: article.image_position } : undefined}
                   />
                 )}
               </div>
