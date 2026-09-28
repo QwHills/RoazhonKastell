@@ -41,7 +41,7 @@ export default async function EspacePage() {
           .from("events")
           .select("id, title, starts_at, ends_at")
           .eq("status", "publie")
-          .in("visibility", ["partenaires", "tous_membres", "public"])
+          .neq("category", "mardi-coworking")
           .gte("starts_at", now)
           .order("starts_at", { ascending: true })
           .limit(1)
