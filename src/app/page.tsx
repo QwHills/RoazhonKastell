@@ -44,7 +44,7 @@ function DiscoverCards() {
           >
             <div className="relative overflow-hidden bg-zinc-100" style={{ aspectRatio: "16/9" }}>
               <img
-                src="/photo-conseillers.webp"
+                src="/photo-conseillers.jpg"
                 alt="Conseillers immobiliers"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 style={{ objectPosition: "center 30%" }}
