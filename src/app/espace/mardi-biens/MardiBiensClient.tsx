@@ -214,7 +214,7 @@ export default function MardiBiensClient() {
                 disabled={acting}
                 className="inline-flex items-center gap-2 px-5 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
               >
-                Rouvrir la séance
+                Remettre en préparation
               </button>
             )}
           </div>

@@ -117,9 +117,15 @@ export async function POST(request: Request) {
     }
     const { error } = await admin
       .from("tuesday_sessions")
-      .update({ status: "active", completed_at: null })
+      .update({ status: "preparation", started_at: null, completed_at: null, current_property_id: null })
       .eq("id", sessionId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await admin
+      .from("tuesday_session_properties")
+      .update({ status: "a_presenter", draw_order: null, presented_at: null })
+      .eq("session_id", sessionId);
+
     return NextResponse.json({ ok: true });
   }
 
