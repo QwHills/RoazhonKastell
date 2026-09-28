@@ -100,7 +100,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
         {navGroups.map((group, gi) => (
           <div key={gi}>
             {group.label && (
-              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-300">
+              <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-white/40">
                 {group.label}
               </p>
             )}
@@ -118,8 +118,8 @@ export default function Sidebar({ profile }: { profile: Profile }) {
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
                       isActive
-                        ? "bg-zinc-900 text-white"
-                        : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+                        ? "bg-white/20 text-white backdrop-blur-sm"
+                        : "text-white/70 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
@@ -133,21 +133,21 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       </div>
 
       {/* Bottom: user card + logout */}
-      <div className="border-t border-zinc-100 p-3">
+      <div className="border-t border-white/15 p-3">
         <div className="flex items-center gap-3 px-3 py-3">
-          <div className="w-9 h-9 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-zinc-900 truncate">
+            <p className="text-sm font-semibold text-white truncate">
               {profile.first_name} {profile.last_name}
             </p>
-            <p className="text-[11px] text-zinc-400 truncate">{profile.email}</p>
+            <p className="text-[11px] text-white/50 truncate">{profile.email}</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/50 hover:bg-red-500/20 hover:text-red-300 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
@@ -185,19 +185,33 @@ export default function Sidebar({ profile }: { profile: Profile }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-zinc-100 flex flex-col transform transition-transform lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-full w-64 flex flex-col transform transition-transform lg:translate-x-0 overflow-hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-6 py-5 border-b border-zinc-100 flex-shrink-0">
-          <Link href="/" className="flex flex-col">
-            <span className="text-lg font-bold text-zinc-900 tracking-tight">Roazhon Kastell</span>
-            <span className="text-[11px] text-zinc-400 font-medium tracking-wide -mt-0.5">
-              Espace membre
-            </span>
-          </Link>
+        {/* Background photo */}
+        <img
+          src="/chateau-drone.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{ objectPosition: "center 60%" }}
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full">
+          <div className="px-4 py-5 flex-shrink-0">
+            <Link href="/" className="inline-flex flex-col px-4 py-3 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/25 shadow-lg">
+              <span className="text-lg font-bold text-white tracking-tight drop-shadow-sm">Roazhon Kastell</span>
+              <span className="text-[11px] text-white/70 font-medium tracking-wide -mt-0.5">
+                Espace membre
+              </span>
+            </Link>
+          </div>
+          {nav}
         </div>
-        {nav}
       </aside>
     </>
   );
