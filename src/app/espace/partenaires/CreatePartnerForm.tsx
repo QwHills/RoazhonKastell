@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function CreatePartnerForm({
@@ -23,28 +22,19 @@ export default function CreatePartnerForm({
     setCreating(true);
     setError("");
 
-    const supabase = createClient();
+    const res = await fetch("/api/partners/create-own", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), category: category.trim() || null }),
+    });
 
-    const { data: partner, error: partnerError } = await supabase
-      .from("partners")
-      .insert({
-        name: name.trim(),
-        category: category.trim() || null,
-        status: "brouillon",
-        remuneration: false,
-      })
-      .select("id")
-      .single();
+    const data = await res.json();
 
-    if (partnerError || !partner) {
-      setError("Erreur lors de la création : " + (partnerError?.message || ""));
+    if (!res.ok) {
+      setError(data.error || "Erreur lors de la création.");
       setCreating(false);
       return;
     }
-
-    await supabase
-      .from("partner_members")
-      .insert({ partner_id: partner.id, user_id: userId });
 
     router.refresh();
   }
