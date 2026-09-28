@@ -13,40 +13,39 @@ export default async function EspacePage() {
 
   const supabase = await createClient();
 
-  const { count: myPropertiesCount } = await supabase
-    .from("shared_properties")
-    .select("*", { count: "exact", head: true })
-    .eq("owner_id", profile.id);
-
-  const { count: mySearchesCount } = await supabase
-    .from("buyer_searches")
-    .select("*", { count: "exact", head: true })
-    .eq("owner_id", profile.id)
-    .eq("status", "active");
-
   const admin = isAdmin(profile);
   const manager = canManageMembers(profile);
   const isPartner = hasRole(profile, "partenaire");
-
-  let pendingCount = 0;
-  if (admin || manager) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("member_status", "en_attente");
-    pendingCount = count || 0;
-  }
-
-  // Prochain événement mardi coworking
   const now = new Date().toISOString();
-  const { data: nextEvents } = await supabase
-    .from("events")
-    .select("id, title, starts_at, ends_at")
-    .eq("status", "publie")
-    .gte("starts_at", now)
-    .order("starts_at", { ascending: true })
-    .limit(1);
 
+  const [
+    { count: myPropertiesCount },
+    { count: mySearchesCount },
+    pendingResult,
+    { data: nextEvents },
+  ] = await Promise.all([
+    supabase
+      .from("shared_properties")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_id", profile.id),
+    supabase
+      .from("buyer_searches")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_id", profile.id)
+      .eq("status", "active"),
+    (admin || manager)
+      ? supabase.from("profiles").select("*", { count: "exact", head: true }).eq("member_status", "en_attente")
+      : Promise.resolve({ count: 0 }),
+    supabase
+      .from("events")
+      .select("id, title, starts_at, ends_at")
+      .eq("status", "publie")
+      .gte("starts_at", now)
+      .order("starts_at", { ascending: true })
+      .limit(1),
+  ]);
+
+  const pendingCount = pendingResult.count || 0;
   const nextEvent = nextEvents?.[0] || null;
 
   let isRegistered = false;
