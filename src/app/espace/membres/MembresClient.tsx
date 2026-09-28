@@ -60,6 +60,10 @@ export default function MembresClient({
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
+      const statusOrder: Record<string, number> = { en_attente: 0, actif: 1, inactif: 2 };
+      const sa = statusOrder[a.member_status] ?? 1;
+      const sb = statusOrder[b.member_status] ?? 1;
+      if (sa !== sb) return sa - sb;
       const firstA = (a.first_name || "").toLowerCase();
       const firstB = (b.first_name || "").toLowerCase();
       if (firstA !== firstB) return firstA.localeCompare(firstB, "fr");
@@ -339,6 +343,30 @@ function MemberRow({
               </span>
             )}
           </div>
+          {!isEditing && (member.iad_id || member.rsac_number || member.rib_url) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              {member.iad_id && (
+                <span className="px-2 py-0.5 bg-zinc-50 text-zinc-500 rounded-lg text-xs">
+                  IAD : {member.iad_id}
+                </span>
+              )}
+              {member.rsac_number && (
+                <span className="px-2 py-0.5 bg-zinc-50 text-zinc-500 rounded-lg text-xs">
+                  RSAC : {member.rsac_number}{member.rsac_city ? ` (${member.rsac_city})` : ""}
+                </span>
+              )}
+              {member.rib_url && (
+                <a
+                  href={member.rib_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-lg text-xs font-medium hover:bg-violet-100 transition-colors"
+                >
+                  Voir le RIB
+                </a>
+              )}
+            </div>
+          )}
         </div>
         {!isEditing && (
           <button
@@ -409,6 +437,19 @@ function MemberRow({
                   className="px-3 py-2 rounded-xl border border-zinc-200 text-sm w-full focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
+            </div>
+          )}
+          {member.rib_url && (
+            <div className="mb-4 p-3 bg-violet-50 rounded-xl flex items-center gap-3">
+              <span className="text-sm text-zinc-700">RIB du membre :</span>
+              <a
+                href={member.rib_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-violet-600 hover:underline"
+              >
+                Télécharger le RIB
+              </a>
             </div>
           )}
           <div className="mb-4">
