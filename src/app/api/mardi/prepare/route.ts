@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     .eq("id", sessionId)
     .single();
 
-  if (!session || session.status !== "preparation") {
-    return NextResponse.json({ error: "La séance est déjà lancée ou terminée" }, { status: 400 });
+  if (!session) {
+    return NextResponse.json({ error: "Séance introuvable" }, { status: 400 });
   }
 
   const { data: property } = await admin
@@ -81,7 +81,7 @@ export async function DELETE(request: Request) {
 
   const { data: sp } = await admin
     .from("tuesday_session_properties")
-    .select("id, owner_id, session_id")
+    .select("id, owner_id, session_id, status")
     .eq("id", sessionPropertyId)
     .single();
 
@@ -89,14 +89,8 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
-  const { data: session } = await admin
-    .from("tuesday_sessions")
-    .select("status")
-    .eq("id", sp.session_id)
-    .single();
-
-  if (!session || session.status !== "preparation") {
-    return NextResponse.json({ error: "La séance est déjà lancée" }, { status: 400 });
+  if (sp.status !== "a_presenter") {
+    return NextResponse.json({ error: "Ce bien est déjà en cours de présentation" }, { status: 400 });
   }
 
   const { error } = await admin

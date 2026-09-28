@@ -80,7 +80,7 @@ export default function MardiPreparation({
 
   const preparedIds = new Set(prepared.map((p) => p.property_id));
   const available = properties.filter((p) => !preparedIds.has(p.id));
-  const isLocked = sessionStatus !== "preparation";
+  const isActive = sessionStatus !== "preparation";
 
   const formattedDate = new Date(sessionDate + "T12:00:00").toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -101,7 +101,7 @@ export default function MardiPreparation({
           </div>
           <h2 className="text-lg font-bold">Mes biens pour mardi</h2>
           <p className="text-xs text-white/40 mt-0.5">
-            {isLocked ? "La séance a démarré — modifications verrouillées" : "Sélectionne jusqu'à 3 biens à présenter"}
+            {isActive ? "Séance en cours — tu peux encore ajouter des biens" : "Sélectionne jusqu'à 3 biens à présenter"}
           </p>
         </div>
         <span className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-white/10 text-white/60">
@@ -134,7 +134,7 @@ export default function MardiPreparation({
                     {prop?.living_area ? ` · ${prop.living_area} m²` : ""}
                   </p>
                 </div>
-                {!isLocked && (
+                {pp.status === "a_presenter" && (
                   <button
                     onClick={() => removeProperty(pp.property_id)}
                     disabled={acting === pp.property_id}
@@ -152,7 +152,7 @@ export default function MardiPreparation({
       )}
 
       {/* Add property buttons */}
-      {!isLocked && prepared.length < 3 && available.length > 0 && (
+      {prepared.length < 3 && available.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] uppercase tracking-wider text-white/30 font-medium">Ajouter un bien</p>
           {available.map((prop) => (
@@ -184,7 +184,7 @@ export default function MardiPreparation({
         </div>
       )}
 
-      {!isLocked && properties.length === 0 && (
+      {properties.length === 0 && (
         <p className="text-sm text-white/40 text-center py-4">Aucun bien partagé. Ajoute d&apos;abord un bien ci-dessous.</p>
       )}
     </div>
