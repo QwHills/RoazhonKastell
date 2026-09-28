@@ -250,7 +250,7 @@ function PartnerCard({ partner }: { partner: PartnerRow }) {
 
   if (href) {
     return (
-      <Link href={href} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl">
+      <Link href={href} className="block min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl">
         {card}
       </Link>
     );
