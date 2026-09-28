@@ -159,6 +159,9 @@ export interface SharedProperty {
   dpe_energy_value: number | null;
   dpe_ges_class: string | null;
   dpe_ges_value: number | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   description: string | null;
   status: PropertyStatus;
   verified_at: string | null;

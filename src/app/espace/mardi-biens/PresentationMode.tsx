@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import TimerRing from "./TimerRing";
 
 interface SessionProperty {
@@ -29,6 +29,9 @@ interface SessionProperty {
     dpe_energy_value: number | null;
     dpe_ges_class: string | null;
     dpe_ges_value: number | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
   } | null;
   profiles: {
     id: string;
@@ -65,6 +68,49 @@ const DPE_COLORS: Record<string, string> = {
   A: "bg-[#319834]", B: "bg-[#33a357]", C: "bg-[#cbdb2a]",
   D: "bg-[#f3ec02]", E: "bg-[#f0b40e]", F: "bg-[#ec6927]", G: "bg-[#e12726]",
 };
+
+function PropertyMap({ lat, lng }: { lat: number; lng: number }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletRef = useRef<unknown>(null);
+
+  useEffect(() => {
+    if (!mapRef.current || leafletRef.current) return;
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css";
+    document.head.appendChild(link);
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js";
+    script.onload = () => {
+      const L = (window as unknown as Record<string, unknown>).L as {
+        map: (el: HTMLElement, opts: Record<string, unknown>) => {
+          setView: (coords: [number, number], zoom: number) => unknown;
+          invalidateSize: () => void;
+        };
+        tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (map: unknown) => void };
+        marker: (coords: [number, number]) => { addTo: (map: unknown) => void };
+      };
+      if (!L || !mapRef.current) return;
+      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false }).setView([lat, lng], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+      }).addTo(map);
+      L.marker([lat, lng]).addTo(map);
+      leafletRef.current = map;
+      setTimeout(() => (map as { invalidateSize: () => void }).invalidateSize(), 100);
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      link.remove();
+      script.remove();
+    };
+  }, [lat, lng]);
+
+  return <div ref={mapRef} className="w-full h-full rounded-xl" />;
+}
 
 export default function PresentationMode({ session: initialSession, properties: initialProps, onExit, onRefresh }: Props) {
   const [session, setSession] = useState(initialSession);
@@ -273,9 +319,24 @@ export default function PresentationMode({ session: initialSession, properties: 
                       <span className="text-xs text-zinc-400">· {prop.transaction_type}</span>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-zinc-900 mb-2">{prop.city || "Localisation non renseignée"}</h2>
+                  <h2 className="text-2xl font-bold text-zinc-900 mb-1">{prop.city || "Localisation non renseignée"}</h2>
+                  {prop.address && (
+                    <p className="text-sm text-zinc-500 mb-2 flex items-center gap-1.5">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                      </svg>
+                      {prop.address}
+                    </p>
+                  )}
                   {prop.price != null && (
                     <p className="text-xl font-bold text-zinc-900 mb-4">{prop.price.toLocaleString("fr-FR")} €</p>
+                  )}
+
+                  {prop.latitude && prop.longitude && (
+                    <div className="w-full h-48 rounded-xl overflow-hidden mb-4 border border-zinc-200">
+                      <PropertyMap lat={prop.latitude} lng={prop.longitude} />
+                    </div>
                   )}
                   <div className="flex flex-wrap gap-4 text-sm text-zinc-500">
                     {prop.living_area != null && (

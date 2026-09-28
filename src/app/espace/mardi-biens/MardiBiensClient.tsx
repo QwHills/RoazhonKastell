@@ -28,6 +28,9 @@ interface SessionProperty {
     dpe_energy_value: number | null;
     dpe_ges_class: string | null;
     dpe_ges_value: number | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
   } | null;
   profiles: {
     id: string;

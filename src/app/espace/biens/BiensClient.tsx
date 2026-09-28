@@ -25,6 +25,9 @@ interface Property {
   dpe_energy_value: number | null;
   dpe_ges_class: string | null;
   dpe_ges_value: number | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   status: PropertyStatus;
   created_at: string;
   profiles?: { first_name: string; last_name: string } | null;
@@ -65,6 +68,7 @@ const EMPTY_FORM = {
   dpe_energy_value: "",
   dpe_ges_class: "",
   dpe_ges_value: "",
+  address: "",
 };
 
 export default function BiensClient({
@@ -89,6 +93,10 @@ export default function BiensClient({
   const [photos, setPhotos] = useState<File[]>([]);
   const [scrapedPhotos, setScrapedPhotos] = useState<string[]>([]);
   const [scrapedPhotoUrl, setScrapedPhotoUrl] = useState<string>("");
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<{ label: string; lat: number; lng: number }[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [tab, setTab] = useState<"mine" | "network">("network");
   const [citySuggestions, setCitySuggestions] = useState<{ nom: string; codesPostaux: string[] }[]>([]);
@@ -154,6 +162,45 @@ export default function BiensClient({
     }));
     setCitySuggestions([]);
     setShowCitySuggestions(false);
+  }
+
+  async function lookupAddress(query: string) {
+    if (query.length < 5) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const results = (data.features || []).map((f: { properties: { label: string }; geometry: { coordinates: [number, number] } }) => ({
+          label: f.properties.label,
+          lng: f.geometry.coordinates[0],
+          lat: f.geometry.coordinates[1],
+        }));
+        setAddressSuggestions(results);
+        setShowAddressSuggestions(results.length > 0);
+      }
+    } catch {
+      setAddressSuggestions([]);
+    }
+  }
+
+  function handleAddressInput(value: string) {
+    setForm((f) => ({ ...f, address: value }));
+    setAddressCoords(null);
+    if (addressLookupTimer.current) clearTimeout(addressLookupTimer.current);
+    addressLookupTimer.current = setTimeout(() => lookupAddress(value), 300);
+  }
+
+  function selectAddress(suggestion: { label: string; lat: number; lng: number }) {
+    setForm((f) => ({ ...f, address: suggestion.label }));
+    setAddressCoords({ lat: suggestion.lat, lng: suggestion.lng });
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
   }
 
   async function scrapeIadUrl(url: string) {
@@ -232,6 +279,9 @@ export default function BiensClient({
       dpe_energy_value: form.dpe_energy_value ? parseInt(form.dpe_energy_value) : null,
       dpe_ges_class: form.dpe_ges_class || null,
       dpe_ges_value: form.dpe_ges_value ? parseInt(form.dpe_ges_value) : null,
+      address: form.address || null,
+      latitude: addressCoords?.lat ?? null,
+      longitude: addressCoords?.lng ?? null,
       ...(scrapedPhotos.length > 0 ? { photos: scrapedPhotos } : {}),
       ...(effectivePhotoUrl ? { photo_url: effectivePhotoUrl } : {}),
     };
@@ -280,6 +330,8 @@ export default function BiensClient({
     setPhotos([]);
     setScrapedPhotos([]);
     setScrapedPhotoUrl("");
+    setAddressCoords(null);
+    setAddressSuggestions([]);
     setSaving(false);
   }
 
@@ -301,7 +353,9 @@ export default function BiensClient({
       dpe_energy_value: p.dpe_energy_value ? String(p.dpe_energy_value) : "",
       dpe_ges_class: p.dpe_ges_class || "",
       dpe_ges_value: p.dpe_ges_value ? String(p.dpe_ges_value) : "",
+      address: p.address || "",
     });
+    setAddressCoords(p.latitude && p.longitude ? { lat: p.latitude, lng: p.longitude } : null);
     setPhotos([]);
     setScrapedPhotos(p.photos || []);
     setScrapedPhotoUrl(p.photo_url || "");
@@ -620,6 +674,39 @@ export default function BiensClient({
               </div>
             </div>
           )}
+
+          <div className="relative">
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Adresse exacte du bien</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={(e) => handleAddressInput(e.target.value)}
+              onFocus={() => { if (addressSuggestions.length > 0) setShowAddressSuggestions(true); }}
+              onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
+              placeholder="12 rue de la Paix, Rennes"
+              autoComplete="off"
+              className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+            {showAddressSuggestions && addressSuggestions.length > 0 && (
+              <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                {addressSuggestions.map((s, i) => (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      onMouseDown={() => selectAddress(s)}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-zinc-50"
+                    >
+                      <span className="font-medium text-zinc-900">{s.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {addressCoords && (
+              <p className="text-xs text-emerald-600 mt-1">Coordonnées GPS enregistrées</p>
+            )}
+            <p className="text-xs text-zinc-400 mt-1">Saisissez l&apos;adresse pour afficher la carte lors de la présentation.</p>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Description / Commentaire</label>
