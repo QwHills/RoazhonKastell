@@ -56,6 +56,7 @@ interface Props {
   properties: SessionProperty[];
   onExit: () => void;
   onRefresh: () => Promise<void>;
+  previewMode?: boolean;
 }
 
 const PROMPTS = [
@@ -112,10 +113,11 @@ function PropertyMap({ lat, lng }: { lat: number; lng: number }) {
   return <div ref={mapRef} className="w-full h-full rounded-xl" />;
 }
 
-export default function PresentationMode({ session: initialSession, properties: initialProps, onExit, onRefresh }: Props) {
+export default function PresentationMode({ session: initialSession, properties: initialProps, onExit, onRefresh, previewMode = false }: Props) {
   const [session, setSession] = useState(initialSession);
   const [properties, setProperties] = useState(initialProps);
-  const [currentProp, setCurrentProp] = useState<SessionProperty | null>(null);
+  const [currentProp, setCurrentProp] = useState<SessionProperty | null>(previewMode && initialProps.length > 0 ? initialProps[0] : null);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [deciding, setDeciding] = useState(false);
   const [noEligible, setNoEligible] = useState(false);
@@ -231,31 +233,37 @@ export default function PresentationMode({ session: initialSession, properties: 
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
-          Retour
+          {previewMode ? "Quitter l'aperçu" : "Retour"}
         </button>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
-            <span className="font-semibold text-zinc-900">{doneCount}</span>
-            <span>/</span>
-            <span>{total}</span>
-            <span>présentés</span>
+        {previewMode ? (
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">Aperçu — aucune modification</span>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <span className="font-semibold text-zinc-900">{doneCount}</span>
+              <span>/</span>
+              <span>{total}</span>
+              <span>présentés</span>
+            </div>
+            <div className="w-32 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-zinc-900 rounded-full transition-all duration-500"
+                style={{ width: total > 0 ? `${(doneCount / total) * 100}%` : "0%" }}
+              />
+            </div>
           </div>
-          <div className="w-32 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-zinc-900 rounded-full transition-all duration-500"
-              style={{ width: total > 0 ? `${(doneCount / total) * 100}%` : "0%" }}
-            />
-          </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => { if (confirm("Terminer la séance ?")) completeSession(); }}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            Terminer
-          </button>
+          {!previewMode && (
+            <button
+              onClick={() => { if (confirm("Terminer la séance ?")) completeSession(); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              Terminer
+            </button>
+          )}
           <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors">
           {isFullscreen ? (
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -402,25 +410,48 @@ export default function PresentationMode({ session: initialSession, properties: 
                   <p className="text-sm text-zinc-400">Présente-nous ton bien</p>
                 </div>
 
-                {/* Timer */}
-                <TimerRing
-                  sessionId={session.id}
-                  timerState={session.timer_state}
-                  onFinish={() => {}}
-                  onSync={(ts) => setSession((s) => ({ ...s, timer_state: ts }))}
-                />
-
-                {/* Prompts */}
-                <div className="w-full space-y-2 mt-2">
-                  {PROMPTS.map((p, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-zinc-500">
-                      <span className="w-5 h-5 rounded-full bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-400 flex-shrink-0 mt-0.5">
-                        {i + 1}
-                      </span>
-                      {p}
+                {previewMode ? (
+                  <div className="w-full flex flex-col items-center gap-4">
+                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Aperçu</p>
+                    <p className="text-sm text-zinc-500">{previewIndex + 1} / {properties.length}</p>
+                    <div className="flex gap-3 w-full">
+                      <button
+                        onClick={() => { const i = (previewIndex - 1 + properties.length) % properties.length; setPreviewIndex(i); setCurrentProp(properties[i]); setPhotoIndex(0); }}
+                        className="flex-1 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        Précédent
+                      </button>
+                      <button
+                        onClick={() => { const i = (previewIndex + 1) % properties.length; setPreviewIndex(i); setCurrentProp(properties[i]); setPhotoIndex(0); }}
+                        className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors"
+                      >
+                        Suivant
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Timer */}
+                    <TimerRing
+                      sessionId={session.id}
+                      timerState={session.timer_state}
+                      onFinish={() => {}}
+                      onSync={(ts) => setSession((s) => ({ ...s, timer_state: ts }))}
+                    />
+
+                    {/* Prompts */}
+                    <div className="w-full space-y-2 mt-2">
+                      {PROMPTS.map((p, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-zinc-500">
+                          <span className="w-5 h-5 rounded-full bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-400 flex-shrink-0 mt-0.5">
+                            {i + 1}
+                          </span>
+                          {p}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </>
@@ -525,7 +556,7 @@ export default function PresentationMode({ session: initialSession, properties: 
       </div>
 
       {/* Bottom action bar */}
-      {currentProp && (
+      {currentProp && !previewMode && (
         <div className="border-t border-zinc-200 bg-white px-6 py-4">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-sm text-zinc-400">

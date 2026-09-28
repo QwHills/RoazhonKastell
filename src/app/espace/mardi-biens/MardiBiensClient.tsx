@@ -80,6 +80,7 @@ export default function MardiBiensClient() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const fetchSession = useCallback(async () => {
     const res = await fetch("/api/mardi/session");
@@ -146,6 +147,18 @@ export default function MardiBiensClient() {
     return <p className="text-center text-zinc-400 py-16">Impossible de charger la séance.</p>;
   }
 
+  if (showPreview && properties.length > 0) {
+    return (
+      <PresentationMode
+        session={session}
+        properties={properties}
+        onExit={() => { setShowPreview(false); fetchSession(); }}
+        onRefresh={fetchSession}
+        previewMode
+      />
+    );
+  }
+
   if (showPresentation && session.status === "active") {
     return (
       <PresentationMode
@@ -199,16 +212,29 @@ export default function MardiBiensClient() {
         <>
           <div className="flex gap-3 mb-6">
             {session.status === "preparation" && (
-              <button
-                onClick={startSession}
-                disabled={acting || properties.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-40 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
-                </svg>
-                Lancer les présentations
-              </button>
+              <>
+                <button
+                  onClick={startSession}
+                  disabled={acting || properties.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+                  </svg>
+                  Lancer les présentations
+                </button>
+                <button
+                  onClick={() => setShowPreview(true)}
+                  disabled={properties.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Visionner les biens
+                </button>
+              </>
             )}
             {session.status === "active" && (
               <>
