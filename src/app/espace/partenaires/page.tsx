@@ -3,6 +3,7 @@ import { getCurrentUser, canManageMembers, hasRole } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import PartenairesGestion from "./PartenairesGestion";
 import PartenaireEdit from "./PartenaireEdit";
+import CreatePartnerForm from "./CreatePartnerForm";
 
 export default async function PartenairesPage() {
   const profile = await getCurrentUser();
@@ -40,15 +41,7 @@ export default async function PartenairesPage() {
       }
     }
 
-    return (
-      <div className="max-w-md mx-auto text-center py-20">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-3">Fiche partenaire</h1>
-        <p className="text-zinc-500">
-          Votre fiche partenaire n&apos;a pas encore été créée.
-          Contactez un responsable pour qu&apos;il la configure.
-        </p>
-      </div>
-    );
+    return <CreatePartnerForm userId={profile.id} userName={`${profile.first_name} ${profile.last_name}`.trim()} />;
   }
 
   redirect("/espace");
