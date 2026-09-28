@@ -22,21 +22,26 @@ export default function CreatePartnerForm({
     setCreating(true);
     setError("");
 
-    const res = await fetch("/api/partners/create-own", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), category: category.trim() || null }),
-    });
+    try {
+      const res = await fetch("/api/partners/create-own", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), category: category.trim() || null }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error || "Erreur lors de la création.");
+      if (!res.ok) {
+        setError(data.error || "Erreur lors de la création.");
+        setCreating(false);
+        return;
+      }
+
+      window.location.reload();
+    } catch (err) {
+      setError("Erreur réseau. Réessayez.");
       setCreating(false);
-      return;
     }
-
-    router.refresh();
   }
 
   return (
