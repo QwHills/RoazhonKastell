@@ -334,7 +334,7 @@ export default function PresentationMode({ session: initialSession, properties: 
                   )}
 
                   {prop.latitude && prop.longitude && (
-                    <div className="w-full h-48 rounded-xl overflow-hidden mb-4 border border-zinc-200">
+                    <div className="w-full h-64 rounded-xl overflow-hidden mb-4 border border-zinc-200">
                       <PropertyMap lat={prop.latitude} lng={prop.longitude} />
                     </div>
                   )}
