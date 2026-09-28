@@ -440,6 +440,33 @@ export default function PresentationMode({ session: initialSession, properties: 
                   {skippedCount > 0 && `, ${skippedCount} mis de côté`}
                 </p>
 
+                {presented.length > 0 && (
+                  <div className="mb-6">
+                    <p className="text-sm font-medium text-zinc-700 mb-3">Biens présentés :</p>
+                    <div className="space-y-2">
+                      {presented.map((sp) => (
+                        <button
+                          key={sp.id}
+                          onClick={() => { setCurrentProp(sp); setPhotoIndex(0); }}
+                          className="w-full flex items-center gap-3 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors text-left"
+                        >
+                          {sp.shared_properties?.photo_url && (
+                            <img src={sp.shared_properties.photo_url} alt="" className="w-10 h-8 rounded object-cover flex-shrink-0" />
+                          )}
+                          <span className="text-sm text-zinc-700 flex-1">
+                            {sp.shared_properties?.city || "—"}
+                            {sp.shared_properties?.living_area ? ` · ${sp.shared_properties.living_area} m²` : ""}
+                            {sp.profiles ? ` · ${sp.profiles.first_name}` : ""}
+                          </span>
+                          <svg className="w-4 h-4 text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {skipped.length > 0 && (
                   <div className="mb-6">
                     <p className="text-sm font-medium text-zinc-700 mb-3">Biens mis de côté :</p>
