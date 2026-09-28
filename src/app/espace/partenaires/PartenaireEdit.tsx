@@ -128,6 +128,7 @@ export default function PartenaireEdit({
     liens: false,
   });
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const contactPhotoRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -166,6 +167,16 @@ export default function PartenaireEdit({
 
     const data = await res.json();
     return data.url;
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading("logo");
+    const url = await uploadPhoto(file, "logo");
+    if (url) updateField("logo_url", url);
+    setUploading(null);
+    e.target.value = "";
   }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -475,6 +486,68 @@ export default function PartenaireEdit({
             badge={`${(partner.photos || []).length} photo${(partner.photos || []).length !== 1 ? "s" : ""}`}
           >
             <div className="space-y-6">
+              {/* Logo */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Logo de l&apos;entreprise</label>
+                <div className="flex items-center gap-4">
+                  {partner.logo_url ? (
+                    <div className="relative w-20 h-20 rounded-xl border border-zinc-200 overflow-hidden bg-white flex items-center justify-center">
+                      <img
+                        src={partner.logo_url}
+                        alt="Logo"
+                        className="w-full h-full object-contain p-1"
+                      />
+                      {isEditable && (
+                        <button
+                          type="button"
+                          onClick={() => updateField("logo_url", null)}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={!isEditable || uploading === "logo"}
+                      className="w-20 h-20 border-2 border-dashed border-zinc-300 rounded-xl flex flex-col items-center justify-center gap-0.5 hover:border-zinc-400 disabled:opacity-50"
+                    >
+                      {uploading === "logo" ? (
+                        <span className="text-xs text-zinc-500">…</span>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                          <span className="text-[10px] text-zinc-400">Logo</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <div className="text-xs text-zinc-400">
+                    {partner.logo_url ? (
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={!isEditable}
+                        className="text-zinc-500 hover:text-zinc-700 font-medium"
+                      >
+                        Changer le logo
+                      </button>
+                    ) : (
+                      <p>JPG, PNG ou WebP — format carré recommandé</p>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+              </div>
+
               {/* Photo de couverture */}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-2">Photo de couverture</label>
