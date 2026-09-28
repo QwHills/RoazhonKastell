@@ -17,6 +17,14 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+function CheckCircleIcon() {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 function getNavGroups(profile: Profile): NavGroup[] {
   const groups: NavGroup[] = [];
   const roles = profile.roles;
@@ -34,6 +42,7 @@ function getNavGroups(profile: Profile): NavGroup[] {
       items: [
         { label: "Mes biens", href: "/espace/biens", icon: <BuildingIcon /> },
         { label: "Recherches", href: "/espace/recherches", icon: <SearchIcon /> },
+        { label: "Mes actions", href: "/espace/actions", icon: <CheckCircleIcon /> },
         { label: "Boîte à idées", href: "/espace/idees", icon: <LightbulbIcon /> },
         { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
       ],

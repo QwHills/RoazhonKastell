@@ -1,8 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { EventStatus, EventVisibility } from "@/lib/supabase/types";
+
+interface AtelierActionItem {
+  id: string;
+  title: string;
+  instruction: string;
+  duration_minutes: number;
+  resource_url: string | null;
+  resource_title: string | null;
+  status: string;
+  validated_at: string | null;
+}
+
+interface AiSuggestionItem {
+  title: string;
+  instruction: string;
+  duration_minutes: number;
+}
+
+const EMPTY_ACTION_FORM = {
+  title: "",
+  instruction: "",
+  duration_minutes: "15",
+  resource_url: "",
+  resource_title: "",
+};
 
 interface Participant {
   userId: string;
@@ -29,6 +54,7 @@ interface EventItem {
   external_link: string | null;
   registration_count: number;
   participants?: Participant[];
+  activeAction?: string | null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -120,11 +146,116 @@ export default function EvenementsGestion({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const [actionForm, setActionForm] = useState(EMPTY_ACTION_FORM);
+  const [actionEditId, setActionEditId] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestionItem[]>([]);
+  const [existingActions, setExistingActions] = useState<AtelierActionItem[]>([]);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [savingAction, setSavingAction] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function loadActions(eventId: string) {
+    const res = await fetch(`/api/ateliers/action?eventId=${eventId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setExistingActions(data);
+      const validated = data.find((a: AtelierActionItem) => a.status === "valide");
+      if (validated) {
+        setActionForm({
+          title: validated.title,
+          instruction: validated.instruction,
+          duration_minutes: String(validated.duration_minutes),
+          resource_url: validated.resource_url || "",
+          resource_title: validated.resource_title || "",
+        });
+        setActionEditId(validated.id);
+      } else {
+        setActionForm(EMPTY_ACTION_FORM);
+        setActionEditId(null);
+      }
+    }
+  }
+
+  async function generateSuggestions() {
+    if (!form.title && !form.description) return;
+    setGeneratingAi(true);
+    setAiError(null);
+    setAiSuggestions([]);
+    const res = await fetch("/api/ateliers/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: form.title, description: form.description }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAiSuggestions(data.suggestions || []);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === "SERVICE_NOT_CONFIGURED") {
+        setAiError("La génération IA n’est pas configurée. Saisissez l’action manuellement.");
+      } else {
+        setAiError("Erreur lors de la génération. Réessayez ou saisissez manuellement.");
+      }
+    }
+    setGeneratingAi(false);
+  }
+
+  function selectSuggestion(s: AiSuggestionItem) {
+    setActionForm({
+      title: s.title,
+      instruction: s.instruction,
+      duration_minutes: String(s.duration_minutes),
+      resource_url: "",
+      resource_title: "",
+    });
+    setActionEditId(null);
+    setAiSuggestions([]);
+  }
+
+  async function saveAction(validate: boolean) {
+    if (!editingId || !actionForm.title || !actionForm.instruction) return;
+    setSavingAction(true);
+
+    const body = {
+      eventId: editingId,
+      title: actionForm.title,
+      instruction: actionForm.instruction,
+      duration_minutes: parseInt(actionForm.duration_minutes) || 15,
+      resource_url: actionForm.resource_url || null,
+      resource_title: actionForm.resource_title || null,
+      validate,
+      ...(actionEditId ? { id: actionEditId } : {}),
+    };
+
+    const method = actionEditId ? "PUT" : "POST";
+    const res = await fetch("/api/ateliers/action", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const saved = await res.json();
+      setActionEditId(saved.id);
+      setMessage({ type: "success", text: validate ? "Action validée et activée." : "Action enregistrée en brouillon." });
+      await loadActions(editingId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setMessage({ type: "error", text: err.error || "Erreur lors de l’enregistrement." });
+    }
+    setSavingAction(false);
+  }
+
   function openCreate() {
     setEditingId(null);
     setForm(activeTab === "mardis" ? MARDI_DEFAULTS : EVENT_DEFAULTS);
     setShowForm(true);
     setMessage(null);
+    setExistingActions([]);
+    setAiSuggestions([]);
+    setActionForm(EMPTY_ACTION_FORM);
+    setActionEditId(null);
+    setAiError(null);
   }
 
   function openEdit(event: EventItem) {
@@ -148,6 +279,15 @@ export default function EvenementsGestion({
     });
     setShowForm(true);
     setMessage(null);
+    setAiSuggestions([]);
+    setAiError(null);
+    if (event.category === "mardi-coworking") {
+      loadActions(event.id);
+    } else {
+      setExistingActions([]);
+      setActionForm(EMPTY_ACTION_FORM);
+      setActionEditId(null);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -290,6 +430,7 @@ export default function EvenementsGestion({
       )}
 
       {showForm && (
+        <>
         <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-2xl p-6 mb-8 space-y-4">
           <h2 className="font-semibold text-zinc-900">
             {editingId ? "Modifier l'événement" : "Nouvel événement"}
@@ -414,6 +555,205 @@ export default function EvenementsGestion({
             </button>
           </div>
         </form>
+
+        {/* Section action atelier — visible pour les mardis en mode édition */}
+        {form.category === "mardi-coworking" && editingId && (
+          <div className="bg-white border border-zinc-200 rounded-2xl p-6 mb-8 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-zinc-900 flex items-center gap-2">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Action après l&apos;atelier
+              </h2>
+              {existingActions.some((a) => a.status === "valide") && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                  Action active
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm text-zinc-500">
+              Définissez une action concrète que les participants pourront réaliser dans la semaine après l&apos;atelier.
+            </p>
+
+            {/* Bouton génération IA */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={generateSuggestions}
+                disabled={generatingAi || (!form.title && !form.description)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-xl text-sm font-medium hover:bg-violet-100 transition-colors disabled:opacity-50"
+              >
+                {generatingAi ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Génération en cours…
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM19.5 10.5V12m0 0v1.5m0-1.5h1.5m-1.5 0H18" />
+                    </svg>
+                    Générer 3 suggestions (IA)
+                  </>
+                )}
+              </button>
+              {(!form.title && !form.description) && (
+                <span className="text-xs text-zinc-400">Remplissez le titre ou la description pour activer</span>
+              )}
+            </div>
+
+            {aiError && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">{aiError}</div>
+            )}
+
+            {/* Suggestions IA */}
+            {aiSuggestions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Suggestions de l&apos;IA — cliquez pour sélectionner</p>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {aiSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => selectSuggestion(s)}
+                      className="text-left p-4 border border-zinc-200 rounded-xl hover:border-violet-300 hover:bg-violet-50 transition-colors"
+                    >
+                      <h4 className="font-medium text-sm text-zinc-900 mb-1">{s.title}</h4>
+                      <p className="text-xs text-zinc-500 line-clamp-3 mb-2">{s.instruction}</p>
+                      <span className="text-[11px] text-zinc-400">{s.duration_minutes} min</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Formulaire action */}
+            <div className="space-y-3 pt-2 border-t border-zinc-100">
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Titre de l&apos;action</label>
+                <input
+                  type="text"
+                  value={actionForm.title}
+                  onChange={(e) => setActionForm({ ...actionForm, title: e.target.value })}
+                  placeholder="Ex : Appeler 3 anciens clients"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Consigne détaillée</label>
+                <textarea
+                  value={actionForm.instruction}
+                  onChange={(e) => setActionForm({ ...actionForm, instruction: e.target.value })}
+                  rows={3}
+                  placeholder="Décrivez ce que le conseiller doit faire concrètement…"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Durée (minutes)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={actionForm.duration_minutes}
+                    onChange={(e) => setActionForm({ ...actionForm, duration_minutes: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Lien ressource (optionnel)</label>
+                  <input
+                    type="url"
+                    value={actionForm.resource_url}
+                    onChange={(e) => setActionForm({ ...actionForm, resource_url: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Titre du lien</label>
+                  <input
+                    type="text"
+                    value={actionForm.resource_title}
+                    onChange={(e) => setActionForm({ ...actionForm, resource_title: e.target.value })}
+                    placeholder="Document, vidéo…"
+                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => saveAction(false)}
+                  disabled={savingAction || !actionForm.title || !actionForm.instruction}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-sm font-medium hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {savingAction ? "…" : "Enregistrer en brouillon"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveAction(true)}
+                  disabled={savingAction || !actionForm.title || !actionForm.instruction}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {savingAction ? "…" : "Valider et activer"}
+                </button>
+              </div>
+            </div>
+
+            {/* Actions existantes */}
+            {existingActions.length > 0 && (
+              <div className="pt-4 border-t border-zinc-100">
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Historique des actions</p>
+                <div className="space-y-2">
+                  {existingActions.map((a) => (
+                    <div key={a.id} className={`flex items-center justify-between p-3 rounded-xl ${a.status === "valide" ? "bg-emerald-50 border border-emerald-200" : "bg-zinc-50"}`}>
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">{a.title}</p>
+                        <p className="text-xs text-zinc-400">{a.duration_minutes} min · {a.status === "valide" ? "Active" : a.status === "brouillon" ? "Brouillon" : "Archivée"}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {a.status !== "valide" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActionForm({
+                                title: a.title,
+                                instruction: a.instruction,
+                                duration_minutes: String(a.duration_minutes),
+                                resource_url: a.resource_url || "",
+                                resource_title: a.resource_title || "",
+                              });
+                              setActionEditId(a.id);
+                            }}
+                            className="text-xs text-zinc-500 hover:text-zinc-900"
+                          >
+                            Reprendre
+                          </button>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                          a.status === "valide" ? "bg-emerald-100 text-emerald-700" :
+                          a.status === "brouillon" ? "bg-zinc-200 text-zinc-600" :
+                          "bg-zinc-100 text-zinc-400"
+                        }`}>
+                          {a.status === "valide" ? "Active" : a.status === "brouillon" ? "Brouillon" : "Archivée"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        </>
       )}
 
       {upcoming.length > 0 && (
@@ -549,6 +889,17 @@ function EventCard({
           )}
         </div>
       </div>
+
+      {event.category === "mardi-coworking" && event.activeAction && (
+        <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-xs text-zinc-500">
+            Action : <span className="font-medium text-zinc-700">{event.activeAction}</span>
+          </span>
+        </div>
+      )}
 
       {showParticipants && participants.length > 0 && (
         <div className="mt-4 pt-4 border-t border-zinc-100">

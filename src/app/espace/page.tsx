@@ -5,6 +5,8 @@ import type { Profile } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
 import ParticipeButton from "./ParticipeButton";
+import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction } from "@/lib/dashboard-cards";
+import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard } from "./DashboardCards";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +133,15 @@ export default async function EspacePage() {
     isRegistered = !!reg;
   }
 
+  const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction] = await Promise.all([
+    !isPartner ? getWeeklyAction(supabase, profile.id) : Promise.resolve(null),
+    !isPartner && nextEvent ? getMeetSuggestion(supabase, profile.id, nextEvent.id) : Promise.resolve(null),
+    !isPartner ? getPartnerDiscovery(supabase, profile.id) : Promise.resolve(null),
+    isPartner ? getPartnerFicheAction(supabase, profile.id) : Promise.resolve(null),
+  ]);
+
+  const hasCards = !!(weeklyAction || meetSuggestion || partnerDiscovery);
+
   return (
     <div>
       {/* Greeting */}
@@ -204,6 +215,24 @@ export default async function EspacePage() {
           )}
         </div>
       </div>
+
+      {/* Dashboard cards — adherents */}
+      {hasCards && (
+        <div className="grid md:grid-cols-2 gap-4 mb-8">
+          {weeklyAction && <ActionWeekCard data={weeklyAction} />}
+          {meetSuggestion && nextEvent && (
+            <MeetCounselorCard data={meetSuggestion} eventId={nextEvent.id} />
+          )}
+          {partnerDiscovery && <PartnerDiscoverCard data={partnerDiscovery} />}
+        </div>
+      )}
+
+      {/* Dashboard card — partenaires */}
+      {partnerFicheAction && (
+        <div className="mb-8">
+          <PartnerFicheCard data={partnerFicheAction} />
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

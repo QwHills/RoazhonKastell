@@ -307,6 +307,71 @@ export interface TuesdaySessionProperty {
   created_at: string;
 }
 
+export type AtelierActionStatus = "brouillon" | "valide" | "archive";
+export type UserActionStatus = "a_faire" | "realisee" | "declinee";
+export type MeetSuggestionStatus = "proposee" | "acceptee" | "echangee" | "declinee";
+export type PartnerDiscoveryResponse = "proposee" | "connue" | "vue" | "reportee";
+
+export interface AtelierAction {
+  id: string;
+  event_id: string;
+  title: string;
+  instruction: string;
+  duration_minutes: number;
+  resource_url: string | null;
+  resource_title: string | null;
+  ai_suggestions: AiSuggestion[];
+  status: AtelierActionStatus;
+  validated_by: string | null;
+  validated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiSuggestion {
+  title: string;
+  instruction: string;
+  duration_minutes: number;
+}
+
+export interface UserActionTracking {
+  id: string;
+  action_id: string;
+  user_id: string;
+  status: UserActionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetSuggestion {
+  id: string;
+  event_id: string;
+  user_id: string;
+  suggested_user_id: string;
+  status: MeetSuggestionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnownContact {
+  user_id: string;
+  known_user_id: string;
+  source: "self_declared" | "met_at_event";
+  event_id: string | null;
+  created_at: string;
+}
+
+export interface PartnerDiscovery {
+  id: string;
+  user_id: string;
+  partner_id: string;
+  period_start: string;
+  is_current: boolean;
+  response: PartnerDiscoveryResponse;
+  created_at: string;
+  updated_at: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Database {
   public: {
@@ -327,6 +392,11 @@ export interface Database {
       financial_entries: { Row: FinancialEntry; Insert: Partial<FinancialEntry> & { label: string; category: string; amount: number; type: "recette" | "depense" }; Update: Partial<FinancialEntry>; Relationships: [] };
       tuesday_sessions: { Row: TuesdaySession; Insert: Partial<TuesdaySession> & { session_date: string }; Update: Partial<TuesdaySession>; Relationships: [] };
       tuesday_session_properties: { Row: TuesdaySessionProperty; Insert: Partial<TuesdaySessionProperty> & { session_id: string; property_id: string; owner_id: string }; Update: Partial<TuesdaySessionProperty>; Relationships: [] };
+      atelier_actions: { Row: AtelierAction; Insert: Partial<AtelierAction> & { event_id: string; title: string; instruction: string }; Update: Partial<AtelierAction>; Relationships: [] };
+      user_action_tracking: { Row: UserActionTracking; Insert: Partial<UserActionTracking> & { action_id: string; user_id: string }; Update: Partial<UserActionTracking>; Relationships: [] };
+      meet_suggestions: { Row: MeetSuggestion; Insert: Partial<MeetSuggestion> & { event_id: string; user_id: string; suggested_user_id: string }; Update: Partial<MeetSuggestion>; Relationships: [] };
+      known_contacts: { Row: KnownContact; Insert: { user_id: string; known_user_id: string; source?: string; event_id?: string }; Update: never; Relationships: [] };
+      partner_discoveries: { Row: PartnerDiscovery; Insert: Partial<PartnerDiscovery> & { user_id: string; partner_id: string; period_start: string }; Update: Partial<PartnerDiscovery>; Relationships: [] };
     };
     Views: {};
     Functions: {};
