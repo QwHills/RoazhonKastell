@@ -11,7 +11,7 @@ const conseillerPlans = [
       "Communauté iad locale",
     ],
     cta: "Devenir adhérent",
-    href: "#contact",
+    href: "/inscription?formule=conseiller",
     featured: true,
     icon: (
       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -29,7 +29,7 @@ const conseillerPlans = [
       "Formations & événements",
     ],
     cta: "Choisir cette formule",
-    href: "#contact",
+    href: "/inscription?formule=bureau",
     featured: false,
     icon: (
       <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

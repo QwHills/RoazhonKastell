@@ -34,6 +34,11 @@ export interface Profile {
   cotisation_mensuelle: number | null;
   date_adhesion: string | null;
   jour_prelevement: number | null;
+  iad_id: string | null;
+  rsac_number: string | null;
+  rsac_city: string | null;
+  formule_adhesion: string | null;
+  rib_url: string | null;
   created_at: string;
   updated_at: string;
 }
