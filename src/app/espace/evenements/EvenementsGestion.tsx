@@ -494,9 +494,9 @@ function EventCard({
             </span>
           </div>
           <p className="text-sm text-zinc-500">
-            {formatDate(event.starts_at)} &bull; {formatTime(event.starts_at)}
+            {formatDate(event.starts_at)} &middot; {formatTime(event.starts_at)}
             {event.ends_at && ` — ${formatTime(event.ends_at)}`}
-            {event.location && ` &bull; ${event.location}`}
+            {event.location && <> &middot; {event.location}</>}
           </p>
           {event.registration_count > 0 && (
             <button
