@@ -32,9 +32,9 @@ export const staticArticles: StaticArticle[] = [
     category: "Vie du collectif",
     excerpt:
       "Un lieu pour se retrouver, partager ses expériences et développer son activité.",
-    image_url: "/articles/pourquoi-rejoindre.webp",
+    image_url: "/articles/pourquoi-rejoindre.jpg",
     image_alt:
-      "Conseillers immobiliers échangeant autour d'un café dans un salon du château",
+      "Vue aérienne du château et de l'étang",
     published_at: "2026-09-23T10:00:00+02:00",
     cta: { label: "Découvrir l'adhésion", href: "/#adhesions" },
     ctaPhrase: "Et si on se retrouvait au château ?",
