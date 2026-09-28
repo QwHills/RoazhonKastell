@@ -34,7 +34,7 @@ export const staticArticles: StaticArticle[] = [
       "Un lieu pour se retrouver, partager ses expériences et développer son activité.",
     image_url: "/articles/pourquoi-rejoindre.jpg",
     image_alt:
-      "Vue aérienne du château et de l'étang",
+      "Conseillers assis dans le parc du château",
     published_at: "2026-09-23T10:00:00+02:00",
     cta: { label: "Découvrir l'adhésion", href: "/#adhesions" },
     ctaPhrase: "Et si on se retrouvait au château ?",
@@ -117,9 +117,9 @@ export const staticArticles: StaticArticle[] = [
     category: "Conseils métier",
     excerpt:
       "Une méthode pratique pour anticiper la prise de vue et accompagner vos vendeurs dans la préparation du logement.",
-    image_url: "/articles/photos-immobilieres.webp",
+    image_url: "/articles/photos-immobilieres.jpg",
     image_alt:
-      "Conseillère immobilière préparant un salon pour une séance photo avec un photographe",
+      "Vue aérienne du château et de l'étang",
     published_at: "2026-09-23T10:00:00+02:00",
     cta: { label: "Découvrir les prochains ateliers", href: "/agenda" },
     ctaPhrase: "Envie d'aller plus loin ?",
