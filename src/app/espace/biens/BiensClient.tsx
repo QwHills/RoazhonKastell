@@ -98,7 +98,7 @@ export default function BiensClient({
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const addressLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [tab, setTab] = useState<"mine" | "network">("network");
+  const [tab, setTab] = useState<"mine" | "network">("mine");
   const [citySuggestions, setCitySuggestions] = useState<{ nom: string; codesPostaux: string[] }[]>([]);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const cityLookupTimer = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -740,16 +740,16 @@ export default function BiensClient({
 
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setTab("network")}
-          className={`px-4 py-2 rounded-xl text-sm font-medium ${tab === "network" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
-        >
-          Biens du réseau ({othersProperties.length})
-        </button>
-        <button
           onClick={() => setTab("mine")}
           className={`px-4 py-2 rounded-xl text-sm font-medium ${tab === "mine" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
         >
           Mes biens ({myProperties.length})
+        </button>
+        <button
+          onClick={() => setTab("network")}
+          className={`px-4 py-2 rounded-xl text-sm font-medium ${tab === "network" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
+        >
+          Biens du réseau ({othersProperties.length})
         </button>
       </div>
 
