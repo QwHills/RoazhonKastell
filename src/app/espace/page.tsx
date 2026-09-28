@@ -18,11 +18,28 @@ export default async function EspacePage() {
   const isPartner = hasRole(profile, "partenaire");
   const now = new Date().toISOString();
 
+  function getNextTuesday(): Date {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = today.getDay();
+    const diff = day <= 2 ? 2 - day : 9 - day;
+    const next = new Date(today);
+    next.setDate(today.getDate() + (diff === 0 && new Date() < new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12) ? 0 : diff === 0 ? 7 : diff));
+    return next;
+  }
+
+  const nextTuesday = getNextTuesday();
+  const tuesdayStart = new Date(nextTuesday);
+  tuesdayStart.setHours(0, 0, 0, 0);
+  const tuesdayEnd = new Date(nextTuesday);
+  tuesdayEnd.setHours(23, 59, 59, 999);
+
   const [
     { count: myPropertiesCount },
     { count: mySearchesCount },
     pendingResult,
     { data: nextEvents },
+    { data: tuesdayEvents },
   ] = await Promise.all([
     supabase
       .from("shared_properties")
@@ -45,17 +62,35 @@ export default async function EspacePage() {
           .gte("starts_at", now)
           .order("starts_at", { ascending: true })
           .limit(1)
-      : supabase
+      : Promise.resolve({ data: [] }),
+    !isPartner
+      ? supabase
           .from("events")
           .select("id, title, starts_at, ends_at")
           .eq("status", "publie")
-          .gte("starts_at", now)
+          .eq("category", "mardi-coworking")
+          .gte("starts_at", tuesdayStart.toISOString())
+          .lte("starts_at", tuesdayEnd.toISOString())
           .order("starts_at", { ascending: true })
-          .limit(1),
+          .limit(1)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const pendingCount = pendingResult.count || 0;
-  const nextEvent = nextEvents?.[0] || null;
+
+  let nextEvent: { id: string; title: string; starts_at: string; ends_at: string | null } | null = null;
+  let nextTuesdayFallback = false;
+
+  if (isPartner) {
+    nextEvent = nextEvents?.[0] || null;
+  } else {
+    const tuesdayEvent = tuesdayEvents?.[0] || null;
+    if (tuesdayEvent) {
+      nextEvent = tuesdayEvent;
+    } else {
+      nextTuesdayFallback = true;
+    }
+  }
 
   let isRegistered = false;
   if (nextEvent) {
@@ -104,19 +139,36 @@ export default async function EspacePage() {
               </p>
               <ParticipeButton eventId={nextEvent.id} initialRegistered={isRegistered} showBiens={!isPartner} />
             </>
+          ) : nextTuesdayFallback ? (
+            <>
+              <h2 className="text-2xl font-bold mb-1">Présentation des biens & échanges</h2>
+              <p className="text-white/50 text-sm">
+                {nextTuesday.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                {" · 9h30 – 10h30"}
+              </p>
+              <Link
+                href="/espace/biens"
+                className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-white text-zinc-900 rounded-full text-sm font-semibold hover:bg-zinc-100 transition-colors"
+              >
+                Préparer mes biens
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            </>
           ) : (
             <>
               <h2 className="text-2xl font-bold mb-1">
                 {isPartner ? "Aucun événement prévu" : "Présentation des biens & échanges"}
               </h2>
               <p className="text-white/50 text-sm">
-                {isPartner ? "Les prochains événements partenaires apparaîtront ici." : "9h30 – 12h00"}
+                {isPartner ? "Les prochains événements partenaires apparaîtront ici." : "9h30 – 10h30"}
               </p>
               <Link
-                href="/agenda"
+                href={isPartner ? "/agenda" : "/espace/biens"}
                 className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-white text-zinc-900 rounded-full text-sm font-semibold hover:bg-zinc-100 transition-colors"
               >
-                Voir le programme
+                {isPartner ? "Voir le programme" : "Préparer mes biens"}
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>

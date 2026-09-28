@@ -95,7 +95,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
   const initials = `${(profile.first_name || "")[0] || ""}${(profile.last_name || "")[0] || ""}`.toUpperCase();
 
   const nav = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {navGroups.map((group, gi) => (
           <div key={gi}>
@@ -185,11 +185,11 @@ export default function Sidebar({ profile }: { profile: Profile }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-zinc-100 transform transition-transform lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-full w-64 bg-white border-r border-zinc-100 flex flex-col transform transition-transform lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-6 py-5 border-b border-zinc-100">
+        <div className="px-6 py-5 border-b border-zinc-100 flex-shrink-0">
           <Link href="/" className="flex flex-col">
             <span className="text-lg font-bold text-zinc-900 tracking-tight">Roazhon Kastell</span>
             <span className="text-[11px] text-zinc-400 font-medium tracking-wide -mt-0.5">
