@@ -23,6 +23,11 @@ interface SessionProperty {
     bedrooms: number | null;
     description: string | null;
     photo_url: string | null;
+    photos: string[];
+    dpe_energy_class: string | null;
+    dpe_energy_value: number | null;
+    dpe_ges_class: string | null;
+    dpe_ges_value: number | null;
   } | null;
   profiles: {
     id: string;

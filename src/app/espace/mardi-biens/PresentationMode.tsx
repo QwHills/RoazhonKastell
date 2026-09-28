@@ -24,6 +24,11 @@ interface SessionProperty {
     bedrooms: number | null;
     description: string | null;
     photo_url: string | null;
+    photos: string[];
+    dpe_energy_class: string | null;
+    dpe_energy_value: number | null;
+    dpe_ges_class: string | null;
+    dpe_ges_value: number | null;
   } | null;
   profiles: {
     id: string;
@@ -56,6 +61,11 @@ const PROMPTS = [
   "Profil acquéreur idéal",
 ];
 
+const DPE_COLORS: Record<string, string> = {
+  A: "bg-[#319834]", B: "bg-[#33a357]", C: "bg-[#cbdb2a]",
+  D: "bg-[#f3ec02]", E: "bg-[#f0b40e]", F: "bg-[#ec6927]", G: "bg-[#e12726]",
+};
+
 export default function PresentationMode({ session: initialSession, properties: initialProps, onExit, onRefresh }: Props) {
   const [session, setSession] = useState(initialSession);
   const [properties, setProperties] = useState(initialProps);
@@ -65,6 +75,7 @@ export default function PresentationMode({ session: initialSession, properties: 
   const [noEligible, setNoEligible] = useState(false);
   const [skippedCount, setSkippedCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   const presented = properties.filter((p) => p.status === "presente");
   const toPresent = properties.filter((p) => p.status === "a_presenter");
@@ -104,6 +115,7 @@ export default function PresentationMode({ session: initialSession, properties: 
         setSkippedCount(data.remaining_skipped || 0);
       } else if (data.drawn) {
         setCurrentProp(data.drawn);
+        setPhotoIndex(0);
         await refreshData();
       }
     }
@@ -211,17 +223,46 @@ export default function PresentationMode({ session: initialSession, properties: 
             {/* Left: Property */}
             <div className="flex-1 flex flex-col p-6 lg:p-10 overflow-y-auto">
               <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-                {prop.photo_url ? (
-                  <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6 bg-zinc-200">
-                    <img src={prop.photo_url} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-full aspect-[4/3] rounded-2xl mb-6 bg-zinc-100 flex items-center justify-center">
-                    <svg className="w-20 h-20 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
-                    </svg>
-                  </div>
-                )}
+                {(() => {
+                  const allPhotos = prop.photos?.length > 0 ? prop.photos : prop.photo_url ? [prop.photo_url] : [];
+                  if (allPhotos.length > 0) {
+                    return (
+                      <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6 bg-zinc-200 relative group">
+                        <img src={allPhotos[photoIndex] || allPhotos[0]} alt="" className="w-full h-full object-cover transition-opacity" />
+                        {allPhotos.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setPhotoIndex((i) => (i - 1 + allPhotos.length) % allPhotos.length)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setPhotoIndex((i) => (i + 1) % allPhotos.length)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </button>
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/50 text-white text-xs rounded-full">
+                              {photoIndex + 1} / {allPhotos.length}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="w-full aspect-[4/3] rounded-2xl mb-6 bg-zinc-100 flex items-center justify-center">
+                      <svg className="w-20 h-20 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+                      </svg>
+                    </div>
+                  );
+                })()}
 
                 <div className="w-full">
                   <div className="flex items-baseline gap-2 mb-1">
@@ -250,6 +291,22 @@ export default function PresentationMode({ session: initialSession, properties: 
                     )}
                     {prop.bedrooms != null && (
                       <span>{prop.bedrooms} chambre{prop.bedrooms > 1 ? "s" : ""}</span>
+                    )}
+                    {prop.dpe_energy_class && (
+                      <span className="flex items-center gap-1.5">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-white ${DPE_COLORS[prop.dpe_energy_class] || "bg-zinc-400"}`}>
+                          {prop.dpe_energy_class}
+                        </span>
+                        DPE{prop.dpe_energy_value ? ` ${prop.dpe_energy_value} kWh` : ""}
+                      </span>
+                    )}
+                    {prop.dpe_ges_class && (
+                      <span className="flex items-center gap-1.5">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-white ${DPE_COLORS[prop.dpe_ges_class] || "bg-zinc-400"}`}>
+                          {prop.dpe_ges_class}
+                        </span>
+                        GES
+                      </span>
                     )}
                   </div>
                 </div>

@@ -154,6 +154,11 @@ export interface SharedProperty {
   has_garage: boolean | null;
   extra_features: Record<string, unknown>;
   photo_url: string | null;
+  photos: string[];
+  dpe_energy_class: string | null;
+  dpe_energy_value: number | null;
+  dpe_ges_class: string | null;
+  dpe_ges_value: number | null;
   description: string | null;
   status: PropertyStatus;
   verified_at: string | null;

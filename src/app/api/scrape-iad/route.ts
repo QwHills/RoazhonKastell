@@ -15,21 +15,18 @@ export async function POST(request: NextRequest) {
 
   const data: Record<string, unknown> = { iad_url: url };
 
-  // Parse URL slug: /annonce/maison-vente-8-pieces-brece-178m2/r2063473
   const slugMatch = url.match(/\/annonce\/([^/]+)/);
   if (slugMatch) {
-    const slug = slugMatch[1];
-    parseSlug(slug, data);
+    parseSlug(slugMatch[1], data);
   }
 
-  // Fetch the page for structured data
   try {
     const res = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "Accept": "text/html",
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (res.ok) {
@@ -37,7 +34,7 @@ export async function POST(request: NextRequest) {
       parseHtml(html, data);
     }
   } catch {
-    // Scraping failed, keep URL-parsed data
+    // Keep URL-parsed data
   }
 
   return NextResponse.json(data);
@@ -46,27 +43,21 @@ export async function POST(request: NextRequest) {
 function parseSlug(slug: string, data: Record<string, unknown>) {
   const parts = slug.toLowerCase();
 
-  // Transaction type
   if (parts.includes("-vente-")) data.transaction_type = "vente";
   else if (parts.includes("-location-")) data.transaction_type = "location";
 
-  // Property type
   if (parts.startsWith("maison")) data.property_type = "maison";
   else if (parts.startsWith("appartement")) data.property_type = "appartement";
   else if (parts.startsWith("terrain")) data.property_type = "terrain";
   else if (parts.startsWith("local")) data.property_type = "local_commercial";
   else if (parts.startsWith("immeuble")) data.property_type = "immeuble";
 
-  // Rooms: "8-pieces" or "3-pieces"
   const roomsMatch = parts.match(/(\d+)-pieces?/);
   if (roomsMatch) data.rooms = parseInt(roomsMatch[1]);
 
-  // Area: "178m2"
   const areaMatch = parts.match(/(\d+)m2/);
   if (areaMatch) data.living_area = parseInt(areaMatch[1]);
 
-  // City: extract from slug — it's between the last known keyword and the area/end
-  // Pattern: type-transaction-Xpieces-CITY-AREAm2
   const cityMatch = parts.match(/\d+-pieces?-([a-z-]+?)(?:-\d+m2|$)/);
   if (cityMatch) {
     const rawCity = cityMatch[1].replace(/-+$/, "");
@@ -76,41 +67,44 @@ function parseSlug(slug: string, data: Record<string, unknown>) {
       .join("-");
   }
 
-  // IAD reference
-  const refMatch = slug.match(/\/(r\d+)$/);
-  if (refMatch) data.iad_reference = refMatch[1];
   const refMatch2 = parts.match(/r(\d+)$/);
-  if (!data.iad_reference && refMatch2) data.iad_reference = "r" + refMatch2[1];
+  if (refMatch2) data.iad_reference = "r" + refMatch2[1];
 }
 
 function parseHtml(html: string, data: Record<string, unknown>) {
-  // JSON-LD structured data
+  parseJsonLd(html, data);
+  parseOpenGraph(html, data);
+  parsePhotos(html, data);
+  parseDpe(html, data);
+  parseFallbacks(html, data);
+}
+
+function parseJsonLd(html: string, data: Record<string, unknown>) {
   const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
-  if (jsonLdMatch) {
-    for (const block of jsonLdMatch) {
-      const jsonStr = block.replace(/<\/?script[^>]*>/gi, "").trim();
-      try {
-        const ld = JSON.parse(jsonStr);
-        if (ld["@type"] === "Product" || ld["@type"] === "RealEstateListing" || ld["@type"] === "Residence") {
-          if (ld.offers?.price) data.price = parseInt(ld.offers.price);
-          if (ld.name) data.title = ld.name;
-          if (ld.description) data.description = cleanText(ld.description);
-          if (ld.image) data.photo_url = typeof ld.image === "string" ? ld.image : ld.image?.url || ld.image?.[0];
-        }
-        if (ld["@type"] === "SingleFamilyResidence" || ld["@type"] === "Apartment") {
-          if (ld.floorSize?.value) data.living_area = parseInt(ld.floorSize.value);
-          if (ld.numberOfRooms) data.rooms = parseInt(ld.numberOfRooms);
-          if (ld.numberOfBedrooms) data.bedrooms = parseInt(ld.numberOfBedrooms);
-          if (ld.address?.addressLocality) data.city = ld.address.addressLocality;
-          if (ld.address?.postalCode) data.postal_code = ld.address.postalCode;
-        }
-      } catch {
-        // Invalid JSON
+  if (!jsonLdMatch) return;
+  for (const block of jsonLdMatch) {
+    const jsonStr = block.replace(/<\/?script[^>]*>/gi, "").trim();
+    try {
+      const ld = JSON.parse(jsonStr);
+      if (ld["@type"] === "Product" || ld["@type"] === "RealEstateListing" || ld["@type"] === "Residence") {
+        if (ld.offers?.price) data.price = parseInt(ld.offers.price);
+        if (ld.name) data.title = ld.name;
+        if (ld.description) data.description = cleanText(ld.description);
       }
+      if (ld["@type"] === "SingleFamilyResidence" || ld["@type"] === "Apartment") {
+        if (ld.floorSize?.value) data.living_area = parseInt(ld.floorSize.value);
+        if (ld.numberOfRooms) data.rooms = parseInt(ld.numberOfRooms);
+        if (ld.numberOfBedrooms) data.bedrooms = parseInt(ld.numberOfBedrooms);
+        if (ld.address?.addressLocality) data.city = ld.address.addressLocality;
+        if (ld.address?.postalCode) data.postal_code = ld.address.postalCode;
+      }
+    } catch {
+      // Invalid JSON
     }
   }
+}
 
-  // OpenGraph meta tags as fallback
+function parseOpenGraph(html: string, data: Record<string, unknown>) {
   if (!data.price) {
     const priceMatch = html.match(/property="og:price:amount"\s+content="(\d+)"/i)
       || html.match(/"price"[:\s]*"?(\d[\d\s]*)"?/);
@@ -122,13 +116,82 @@ function parseHtml(html: string, data: Record<string, unknown>) {
       || html.match(/name="description"\s+content="([^"]+)"/i);
     if (descMatch) data.description = cleanText(descMatch[1]);
   }
+}
 
-  if (!data.photo_url) {
-    const imgMatch = html.match(/property="og:image"\s+content="([^"]+)"/i);
-    if (imgMatch) data.photo_url = imgMatch[1];
+function parsePhotos(html: string, data: Record<string, unknown>) {
+  const seen = new Set<string>();
+  let mainDatePath = "";
+
+  // 1. Find main carousel photos — width=1560 appears in srcset for the gallery
+  const srcsetRegex = /images\.iadfrance\.fr\/property\/broadcast\/(\d{4}\/\d{2}\/\d{2})\/([a-f0-9]+\.(?:png|jpg|jpeg|webp))\?[^"'\s]*width=1560/g;
+  let m;
+  while ((m = srcsetRegex.exec(html)) !== null) {
+    if (!mainDatePath) mainDatePath = m[1];
+    const base = `https://images.iadfrance.fr/property/broadcast/${m[1]}/${m[2]}`;
+    seen.add(base);
   }
 
-  // Look for price in common patterns
+  // 2. Fallback: if no width=1560 found, use width=1200 (og:image)
+  if (!mainDatePath) {
+    const ogRegex = /images\.iadfrance\.fr\/property\/broadcast\/(\d{4}\/\d{2}\/\d{2})\/([a-f0-9]+\.(?:png|jpg|jpeg|webp))\?[^"'\s]*width=1200/g;
+    while ((m = ogRegex.exec(html)) !== null) {
+      if (!mainDatePath) mainDatePath = m[1];
+      const base = `https://images.iadfrance.fr/property/broadcast/${m[1]}/${m[2]}`;
+      seen.add(base);
+    }
+  }
+
+  // 3. From Nuxt data, extract all property photos that share the same upload date
+  if (mainDatePath) {
+    const dp = mainDatePath.replace(/\//g, "\\\\u002F");
+    const escapedRegex = new RegExp(
+      `images\\.playiad\\.com\\\\u002Fproperty\\\\u002Fbroadcast\\\\u002F${dp}\\\\u002F([a-f0-9]+\\.(?:png|jpg|jpeg|webp))`,
+      "g",
+    );
+    while ((m = escapedRegex.exec(html)) !== null) {
+      const base = `https://images.iadfrance.fr/property/broadcast/${mainDatePath}/${m[1]}`;
+      seen.add(base);
+    }
+  }
+
+  const photos = [...seen].map((base) => base + "?format=auto&width=800");
+  if (photos.length > 0) {
+    data.photos = photos;
+    if (!data.photo_url) data.photo_url = photos[0];
+  }
+}
+
+function parseDpe(html: string, data: Record<string, unknown>) {
+  // DPE/GES class letters from the active indicator (border-white border-4)
+  // The page has 2 diagnostic bars: first = DPE energy, second = GES
+  const simpleRegex = /border-white\s+border-4[^>]*>[\s\S]*?<span[^>]*font-semibold[^>]*>([A-G])<\/span>/g;
+  const dpeMatches: string[] = [];
+  let m;
+  while ((m = simpleRegex.exec(html)) !== null) {
+    dpeMatches.push(m[1]);
+  }
+
+  if (dpeMatches.length >= 1) data.dpe_energy_class = dpeMatches[0];
+  if (dpeMatches.length >= 2) data.dpe_ges_class = dpeMatches[1];
+
+  // Consumption value from Nuxt data flat array
+  // Pattern: ..."available","C",121,...
+  const nuxtConsMatch = html.match(
+    /\{"status":\d+,"class":\d+,"consumption":\d+\},"available","([A-G])",(\d+)/
+  );
+  if (nuxtConsMatch) {
+    data.dpe_energy_class = nuxtConsMatch[1];
+    data.dpe_energy_value = parseInt(nuxtConsMatch[2]);
+  }
+
+  // Fallback for DPE value from rendered text
+  if (!data.dpe_energy_value) {
+    const kwhMatch = html.match(/(\d+)\s*kWh\s*\/\s*m/i);
+    if (kwhMatch) data.dpe_energy_value = parseInt(kwhMatch[1]);
+  }
+}
+
+function parseFallbacks(html: string, data: Record<string, unknown>) {
   if (!data.price) {
     const pricePattern = html.match(/(\d[\d\s]{2,})\s*€/);
     if (pricePattern) {
@@ -137,18 +200,21 @@ function parseHtml(html: string, data: Record<string, unknown>) {
     }
   }
 
-  // Bedrooms from HTML text
   if (!data.bedrooms) {
     const bedMatch = html.match(/(\d+)\s*chambre/i);
     if (bedMatch) data.bedrooms = parseInt(bedMatch[1]);
   }
 
-  // Postal code
   if (!data.postal_code) {
     const cpMatch = html.match(/(\d{5})/);
     if (cpMatch && parseInt(cpMatch[1]) >= 1000 && parseInt(cpMatch[1]) <= 98999) {
       data.postal_code = cpMatch[1];
     }
+  }
+
+  if (!data.land_area) {
+    const landMatch = html.match(/terrain[^<]{0,30}?(\d[\d\s]*)\s*m²/i);
+    if (landMatch) data.land_area = parseInt(landMatch[1].replace(/\s/g, ""));
   }
 }
 

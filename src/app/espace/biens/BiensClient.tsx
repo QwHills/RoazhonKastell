@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { PropertyStatus } from "@/lib/supabase/types";
 import MardiPreparation from "./MardiPreparation";
@@ -20,6 +20,11 @@ interface Property {
   bedrooms: number | null;
   description: string | null;
   photo_url: string | null;
+  photos: string[];
+  dpe_energy_class: string | null;
+  dpe_energy_value: number | null;
+  dpe_ges_class: string | null;
+  dpe_ges_value: number | null;
   status: PropertyStatus;
   created_at: string;
   profiles?: { first_name: string; last_name: string } | null;
@@ -56,6 +61,10 @@ const EMPTY_FORM = {
   bedrooms: "",
   description: "",
   is_off_market: false,
+  dpe_energy_class: "",
+  dpe_energy_value: "",
+  dpe_ges_class: "",
+  dpe_ges_value: "",
 };
 
 export default function BiensClient({
@@ -76,7 +85,10 @@ export default function BiensClient({
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const scrapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [scrapedPhotos, setScrapedPhotos] = useState<string[]>([]);
+  const [scrapedPhotoUrl, setScrapedPhotoUrl] = useState<string>("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [tab, setTab] = useState<"mine" | "network">("network");
   const [citySuggestions, setCitySuggestions] = useState<{ nom: string; codesPostaux: string[] }[]>([]);
@@ -167,7 +179,13 @@ export default function BiensClient({
           rooms: data.rooms ? String(data.rooms) : f.rooms,
           bedrooms: data.bedrooms ? String(data.bedrooms) : f.bedrooms,
           description: (data.description as string) || f.description,
+          dpe_energy_class: (data.dpe_energy_class as string) || f.dpe_energy_class,
+          dpe_energy_value: data.dpe_energy_value ? String(data.dpe_energy_value) : f.dpe_energy_value,
+          dpe_ges_class: (data.dpe_ges_class as string) || f.dpe_ges_class,
+          dpe_ges_value: data.dpe_ges_value ? String(data.dpe_ges_value) : f.dpe_ges_value,
         }));
+        setScrapedPhotos(Array.isArray(data.photos) ? data.photos : []);
+        if (data.photo_url) setScrapedPhotoUrl(data.photo_url as string);
       }
     } catch {
       // Silently fail
@@ -197,6 +215,8 @@ export default function BiensClient({
       }
     }
 
+    const effectivePhotoUrl = photoUrl || scrapedPhotoUrl || null;
+
     const payload = {
       iad_url: form.iad_url || null,
       transaction_type: form.transaction_type,
@@ -208,7 +228,12 @@ export default function BiensClient({
       rooms: form.rooms ? parseInt(form.rooms) : null,
       bedrooms: form.bedrooms ? parseInt(form.bedrooms) : null,
       description: form.description || null,
-      ...(photoUrl ? { photo_url: photoUrl } : {}),
+      dpe_energy_class: form.dpe_energy_class || null,
+      dpe_energy_value: form.dpe_energy_value ? parseInt(form.dpe_energy_value) : null,
+      dpe_ges_class: form.dpe_ges_class || null,
+      dpe_ges_value: form.dpe_ges_value ? parseInt(form.dpe_ges_value) : null,
+      ...(scrapedPhotos.length > 0 ? { photos: scrapedPhotos } : {}),
+      ...(effectivePhotoUrl ? { photo_url: effectivePhotoUrl } : {}),
     };
 
     if (editingId) {
@@ -233,7 +258,7 @@ export default function BiensClient({
         .insert({
           owner_id: userId,
           ...payload,
-          photo_url: photoUrl,
+          photo_url: effectivePhotoUrl,
           status: "disponible" as PropertyStatus,
         })
         .select()
@@ -253,6 +278,8 @@ export default function BiensClient({
     setEditingId(null);
     setForm(EMPTY_FORM);
     setPhotos([]);
+    setScrapedPhotos([]);
+    setScrapedPhotoUrl("");
     setSaving(false);
   }
 
@@ -270,8 +297,14 @@ export default function BiensClient({
       bedrooms: p.bedrooms ? String(p.bedrooms) : "",
       description: p.description || "",
       is_off_market: !p.iad_url,
+      dpe_energy_class: p.dpe_energy_class || "",
+      dpe_energy_value: p.dpe_energy_value ? String(p.dpe_energy_value) : "",
+      dpe_ges_class: p.dpe_ges_class || "",
+      dpe_ges_value: p.dpe_ges_value ? String(p.dpe_ges_value) : "",
     });
     setPhotos([]);
+    setScrapedPhotos(p.photos || []);
+    setScrapedPhotoUrl(p.photo_url || "");
     setShowForm(true);
     setMessage(null);
   }
@@ -370,12 +403,16 @@ export default function BiensClient({
                   onChange={(e) => {
                     const val = e.target.value;
                     setForm({ ...form, iad_url: val });
-                    if (val.includes("iadfrance.fr/annonce/")) scrapeIadUrl(val);
+                    if (val.includes("iadfrance.fr/annonce/")) {
+                      if (scrapeTimerRef.current) clearTimeout(scrapeTimerRef.current);
+                      scrapeTimerRef.current = setTimeout(() => scrapeIadUrl(val), 600);
+                    }
                   }}
                   onPaste={(e) => {
                     const pasted = e.clipboardData.getData("text");
                     if (pasted.includes("iadfrance.fr/annonce/")) {
-                      setTimeout(() => scrapeIadUrl(pasted), 100);
+                      if (scrapeTimerRef.current) clearTimeout(scrapeTimerRef.current);
+                      scrapeTimerRef.current = setTimeout(() => scrapeIadUrl(pasted), 300);
                     }
                   }}
                   placeholder="https://www.iadfrance.fr/annonce/..."
@@ -541,6 +578,49 @@ export default function BiensClient({
             </div>
           </div>
 
+          {/* DPE */}
+          {(form.dpe_energy_class || form.dpe_ges_class) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 px-4 py-3 bg-zinc-50 rounded-xl">
+                <DpeBadge letter={form.dpe_energy_class} type="energy" />
+                <div>
+                  <p className="text-xs font-medium text-zinc-500">DPE Énergie</p>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Classe {form.dpe_energy_class || "—"}
+                    {form.dpe_energy_value ? ` · ${form.dpe_energy_value} kWh/m²/an` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3 bg-zinc-50 rounded-xl">
+                <DpeBadge letter={form.dpe_ges_class} type="ges" />
+                <div>
+                  <p className="text-xs font-medium text-zinc-500">GES</p>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Classe {form.dpe_ges_class || "—"}
+                    {form.dpe_ges_value ? ` · ${form.dpe_ges_value} kgCO₂/m²/an` : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Scraped photos preview */}
+          {scrapedPhotos.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-zinc-500 mb-2">{scrapedPhotos.length} photo{scrapedPhotos.length > 1 ? "s" : ""} récupérée{scrapedPhotos.length > 1 ? "s" : ""}</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {scrapedPhotos.slice(0, 6).map((url, i) => (
+                  <img key={i} src={url} alt="" className="w-20 h-16 rounded-lg object-cover flex-shrink-0 border border-zinc-200" />
+                ))}
+                {scrapedPhotos.length > 6 && (
+                  <div className="w-20 h-16 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0 text-xs text-zinc-400 font-medium">
+                    +{scrapedPhotos.length - 6}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Description / Commentaire</label>
             <textarea
@@ -680,6 +760,26 @@ export default function BiensClient({
   );
 }
 
+const DPE_COLORS: Record<string, string> = {
+  A: "bg-[#319834] text-white",
+  B: "bg-[#33a357] text-white",
+  C: "bg-[#cbdb2a] text-zinc-900",
+  D: "bg-[#f3ec02] text-zinc-900",
+  E: "bg-[#f0b40e] text-white",
+  F: "bg-[#ec6927] text-white",
+  G: "bg-[#e12726] text-white",
+};
+
+function DpeBadge({ letter, type }: { letter: string; type: "energy" | "ges" }) {
+  if (!letter) return null;
+  const color = DPE_COLORS[letter.toUpperCase()] || "bg-zinc-200 text-zinc-700";
+  return (
+    <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center font-bold text-sm flex-shrink-0`} title={type === "energy" ? "DPE Énergie" : "GES"}>
+      {letter.toUpperCase()}
+    </div>
+  );
+}
+
 function PropertyCard({ property: p, showOwner, onDelete }: { property: Property; showOwner?: boolean; onDelete?: () => void }) {
   const owner = p.profiles;
   const isOffMarket = !p.iad_url;
@@ -717,6 +817,7 @@ function PropertyCard({ property: p, showOwner, onDelete }: { property: Property
               {[p.city, p.postal_code].filter(Boolean).join(" ")}
               {p.living_area ? ` · ${p.living_area} m²` : ""}
               {p.bedrooms ? ` · ${p.bedrooms} ch.` : ""}
+              {p.dpe_energy_class ? ` · DPE ${p.dpe_energy_class}` : ""}
             </p>
             {p.description && (
               <p className="text-sm text-zinc-600 mt-2">{p.description}</p>
