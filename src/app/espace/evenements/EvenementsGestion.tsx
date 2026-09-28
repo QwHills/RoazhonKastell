@@ -77,7 +77,23 @@ function formatTime(iso: string): string {
   });
 }
 
-const EMPTY_FORM = {
+type TabType = "mardis" | "evenements";
+
+const MARDI_DEFAULTS = {
+  title: "",
+  description: "",
+  location: "Roazhon Kastell, Rennes",
+  address: "",
+  starts_at: "",
+  starts_time: "11:00",
+  ends_time: "12:30",
+  category: "mardi-coworking",
+  visibility: "public" as EventVisibility,
+  max_attendees: "",
+  external_link: "",
+};
+
+const EVENT_DEFAULTS = {
   title: "",
   description: "",
   location: "Roazhon Kastell",
@@ -85,7 +101,7 @@ const EMPTY_FORM = {
   starts_at: "",
   starts_time: "19:00",
   ends_time: "21:00",
-  category: "mardi-coworking",
+  category: "evenement",
   visibility: "public" as EventVisibility,
   max_attendees: "",
   external_link: "",
@@ -97,15 +113,16 @@ export default function EvenementsGestion({
   events: EventItem[];
 }) {
   const [events, setEvents] = useState(initialEvents);
+  const [activeTab, setActiveTab] = useState<TabType>("mardis");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(MARDI_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   function openCreate() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm(activeTab === "mardis" ? MARDI_DEFAULTS : EVENT_DEFAULTS);
     setShowForm(true);
     setMessage(null);
   }
@@ -206,25 +223,63 @@ export default function EvenementsGestion({
     setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, status } : ev)));
   }
 
-  const upcoming = events.filter(
-    (e) => e.status !== "archive" && new Date(e.starts_at) >= new Date(),
+  const isMardi = (e: EventItem) => e.category === "mardi-coworking";
+  const tabEvents = events.filter((e) =>
+    activeTab === "mardis" ? isMardi(e) : !isMardi(e),
   );
-  const past = events.filter(
-    (e) => e.status === "archive" || new Date(e.starts_at) < new Date(),
-  );
+
+  const now = new Date();
+  const upcoming = tabEvents
+    .filter((e) => e.status !== "archive" && new Date(e.starts_at) >= now)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+  const past = tabEvents
+    .filter((e) => e.status === "archive" || new Date(e.starts_at) < now)
+    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+
+  const mardiCount = events.filter((e) => isMardi(e)).length;
+  const eventCount = events.filter((e) => !isMardi(e)).length;
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Gestion des événements</h1>
-          <p className="text-sm text-zinc-500 mt-1">{events.length} événement{events.length > 1 ? "s" : ""}</p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-zinc-900">Gestion des événements</h1>
         <button
           onClick={openCreate}
           className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800"
         >
-          + Nouvel événement
+          + {activeTab === "mardis" ? "Nouvel atelier" : "Nouvel événement"}
+        </button>
+      </div>
+
+      {/* Onglets */}
+      <div className="flex gap-1 bg-zinc-100 rounded-xl p-1 mb-8">
+        <button
+          onClick={() => { setActiveTab("mardis"); setShowForm(false); }}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "mardis"
+              ? "bg-white text-zinc-900 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-700"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+          Les ateliers du mardi
+          <span className="text-xs text-zinc-400">({mardiCount})</span>
+        </button>
+        <button
+          onClick={() => { setActiveTab("evenements"); setShowForm(false); }}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "evenements"
+              ? "bg-white text-zinc-900 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-700"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+          </svg>
+          Les événements du Château
+          <span className="text-xs text-zinc-400">({eventCount})</span>
         </button>
       </div>
 
@@ -393,14 +448,18 @@ export default function EvenementsGestion({
         </div>
       )}
 
-      {events.length === 0 && !showForm && (
+      {tabEvents.length === 0 && !showForm && (
         <div className="text-center py-16">
-          <p className="text-zinc-400 mb-4">Aucun événement pour le moment.</p>
+          <p className="text-zinc-400 mb-4">
+            {activeTab === "mardis"
+              ? "Aucun atelier du mardi pour le moment."
+              : "Aucun événement du château pour le moment."}
+          </p>
           <button
             onClick={openCreate}
             className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800"
           >
-            Créer le premier événement
+            {activeTab === "mardis" ? "Créer un atelier" : "Créer un événement"}
           </button>
         </div>
       )}
