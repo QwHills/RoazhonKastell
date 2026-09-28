@@ -45,9 +45,10 @@ const partenairePlans = [
     phrase: "Faites connaître votre expertise.",
     prix: "250 €",
     perks: [
-      "Visibilité réseau iad local",
+      "Fiche dédiée sur le site",
+      "Lien partageable aux conseillers",
+      "Présentation de vos services",
       "Présence aux événements",
-      "Mise en relation conseillers",
     ],
     cta: "Devenir partenaire",
     href: "#contact",
