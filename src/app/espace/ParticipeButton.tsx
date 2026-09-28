@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export default function ParticipeButton({
   eventId,
   initialRegistered,
+  showBiens = true,
 }: {
   eventId: string;
   initialRegistered: boolean;
+  showBiens?: boolean;
 }) {
   const [registered, setRegistered] = useState(initialRegistered);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,11 @@ export default function ParticipeButton({
       if (res.ok) setRegistered(true);
     }
 
-    router.push("/espace/biens");
+    if (showBiens) {
+      router.push("/espace/biens");
+    } else {
+      setLoading(false);
+    }
   }
 
   async function handleCancel() {
@@ -50,7 +56,7 @@ export default function ParticipeButton({
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
-          Inscrit · Préparer mes biens
+          {showBiens ? "Inscrit · Préparer mes biens" : "Inscrit"}
         </button>
         <button
           onClick={handleCancel}

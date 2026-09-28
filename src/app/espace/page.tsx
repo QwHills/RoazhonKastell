@@ -102,7 +102,7 @@ export default async function EspacePage() {
                 {new Date(nextEvent.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 {nextEvent.ends_at && ` – ${new Date(nextEvent.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
               </p>
-              <ParticipeButton eventId={nextEvent.id} initialRegistered={isRegistered} />
+              <ParticipeButton eventId={nextEvent.id} initialRegistered={isRegistered} showBiens={!isPartner} />
             </>
           ) : (
             <>
