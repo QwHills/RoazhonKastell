@@ -19,10 +19,13 @@ interface PublicEvent {
   max_attendees: number | null;
 }
 
+const TZ = "Europe/Paris";
+
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: TZ,
   });
 }
 
@@ -98,10 +101,10 @@ export default async function AgendaPage() {
                           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                             <div className="flex-shrink-0 text-center sm:text-left">
                               <div className="text-3xl font-bold text-zinc-900">
-                                {new Date(event.starts_at).getDate()}
+                                {new Date(event.starts_at).toLocaleDateString("fr-FR", { day: "numeric", timeZone: TZ })}
                               </div>
                               <div className="text-xs text-zinc-400 uppercase">
-                                {new Date(event.starts_at).toLocaleDateString("fr-FR", { weekday: "short" })}
+                                {new Date(event.starts_at).toLocaleDateString("fr-FR", { weekday: "short", timeZone: TZ })}
                               </div>
                             </div>
 
@@ -159,6 +162,7 @@ function groupByMonth(events: PublicEvent[]): Record<string, PublicEvent[]> {
     const month = new Date(e.starts_at).toLocaleDateString("fr-FR", {
       month: "long",
       year: "numeric",
+      timeZone: TZ,
     });
     if (!groups[month]) groups[month] = [];
     groups[month].push(e);
