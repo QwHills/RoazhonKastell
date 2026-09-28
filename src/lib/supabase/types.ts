@@ -38,9 +38,17 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface ContactSituation {
+  title: string;
+  description: string;
+  icon: string;
+}
+
 export interface Partner {
   id: string;
   name: string;
+  slug: string | null;
+  tagline: string | null;
   category: string | null;
   sector: string | null;
   description: string | null;
@@ -50,7 +58,11 @@ export interface Partner {
   website: string | null;
   social_links: Record<string, string>;
   logo_url: string | null;
+  cover_photo: string | null;
   photos: string[] | null;
+  why_choose_us: string | null;
+  why_choose_us_points: string[];
+  contact_situations: ContactSituation[];
   remuneration: boolean;
   internal_conditions: string | null;
   cotisation_montant: number | null;
@@ -73,6 +85,8 @@ export interface PartnerContact {
   phone: string | null;
   email: string | null;
   note: string | null;
+  photo_url: string | null;
+  is_primary: boolean;
   sort_order: number;
 }
 
