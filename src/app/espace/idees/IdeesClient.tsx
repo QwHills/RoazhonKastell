@@ -39,6 +39,7 @@ const CATEGORIES = [
   "Outils",
   "Formation",
   "Partenariats",
+  "Site internet",
   "Autre",
 ];
 
