@@ -249,7 +249,14 @@ export default function PresentationMode({ session: initialSession, properties: 
           </div>
         </div>
 
-        <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { if (confirm("Terminer la séance ?")) completeSession(); }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            Terminer
+          </button>
+          <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors">
           {isFullscreen ? (
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
@@ -260,6 +267,7 @@ export default function PresentationMode({ session: initialSession, properties: 
             </svg>
           )}
         </button>
+        </div>
       </div>
 
       {/* Main content */}
