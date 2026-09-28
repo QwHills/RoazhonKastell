@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import LoginModal from "./LoginModal";
@@ -21,6 +21,18 @@ export default function Header() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const scrollToHash = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    const hash = href.split("#")[1];
+    if (!hash) return;
+    if (pathname === "/") {
+      e.preventDefault();
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      window.history.replaceState(null, "", `/#${hash}`);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (searchParams.get("login") === "1") {
@@ -62,6 +74,7 @@ export default function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={link.href.includes("#") ? (e) => scrollToHash(e, link.href) : undefined}
                   className="px-4 py-2 text-[14px] font-medium text-zinc-700 hover:text-zinc-900 transition-colors rounded-lg"
                 >
                   {link.label}
@@ -94,6 +107,7 @@ export default function Header() {
               )}
               <Link
                 href="/#adhesions"
+                onClick={(e) => scrollToHash(e, "/#adhesions")}
                 className="px-5 py-2.5 text-[13px] font-semibold text-white bg-zinc-900 rounded-full hover:bg-zinc-800 transition-colors"
               >
                 Adhérer
@@ -131,7 +145,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => { setMenuOpen(false); if (link.href.includes("#")) scrollToHash(e, link.href); }}
                 className="block px-3 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 hover:bg-white/60 rounded-xl transition-colors"
               >
                 {link.label}
@@ -156,7 +170,7 @@ export default function Header() {
               )}
               <Link
                 href="/#adhesions"
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => { setMenuOpen(false); scrollToHash(e, "/#adhesions"); }}
                 className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-zinc-900 rounded-full text-center hover:bg-zinc-800 transition-colors"
               >
                 Adhérer
