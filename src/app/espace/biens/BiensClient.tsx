@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { PropertyStatus } from "@/lib/supabase/types";
+import MardiPreparation from "./MardiPreparation";
 
 interface Property {
   id: string;
@@ -305,6 +306,19 @@ export default function BiensClient({
 
   return (
     <div>
+      <MardiPreparation
+        properties={myProperties.filter((p) => p.status === "disponible").map((p) => ({
+          id: p.id,
+          city: p.city,
+          price: p.price,
+          living_area: p.living_area,
+          rooms: p.rooms,
+          photo_url: p.photo_url,
+          property_type: p.property_type,
+        }))}
+        userId={userId}
+      />
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Partage de biens</h1>
         <button

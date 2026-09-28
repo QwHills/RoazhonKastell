@@ -17,6 +17,8 @@ export type SearchStatus = "active" | "en_pause" | "terminee";
 export type IdeaStatus = "a_etudier" | "retenue" | "en_cours" | "realisee" | "non_retenue";
 export type ArticleStatus = "brouillon" | "soumis" | "publie" | "archive";
 export type PaymentStatus = "en_attente" | "paye" | "en_retard" | "annule";
+export type TuesdaySessionStatus = "preparation" | "active" | "completed";
+export type TuesdayPropertyStatus = "a_presenter" | "en_cours" | "mis_de_cote" | "presente";
 
 export interface Profile {
   id: string;
@@ -269,6 +271,34 @@ export interface MeetingTodo {
   updated_at: string;
 }
 
+export interface TimerState {
+  status: "ready" | "running" | "paused" | "finished";
+  remaining_ms: number;
+  started_at: string | null;
+}
+
+export interface TuesdaySession {
+  id: string;
+  session_date: string;
+  status: TuesdaySessionStatus;
+  current_property_id: string | null;
+  timer_state: TimerState;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface TuesdaySessionProperty {
+  id: string;
+  session_id: string;
+  property_id: string;
+  owner_id: string;
+  status: TuesdayPropertyStatus;
+  draw_order: number | null;
+  presented_at: string | null;
+  created_at: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Database {
   public: {
@@ -287,6 +317,8 @@ export interface Database {
       resources: { Row: Resource; Insert: Partial<Resource> & { title: string }; Update: Partial<Resource>; Relationships: [] };
       articles: { Row: Article; Insert: Partial<Article> & { author_id: string; title: string; slug: string }; Update: Partial<Article>; Relationships: [] };
       financial_entries: { Row: FinancialEntry; Insert: Partial<FinancialEntry> & { label: string; category: string; amount: number; type: "recette" | "depense" }; Update: Partial<FinancialEntry>; Relationships: [] };
+      tuesday_sessions: { Row: TuesdaySession; Insert: Partial<TuesdaySession> & { session_date: string }; Update: Partial<TuesdaySession>; Relationships: [] };
+      tuesday_session_properties: { Row: TuesdaySessionProperty; Insert: Partial<TuesdaySessionProperty> & { session_id: string; property_id: string; owner_id: string }; Update: Partial<TuesdaySessionProperty>; Relationships: [] };
     };
     Views: {};
     Functions: {};

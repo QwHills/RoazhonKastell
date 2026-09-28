@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Profile } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/mardi";
 import ParticipeButton from "./ParticipeButton";
 
 export const dynamic = "force-dynamic";
@@ -88,7 +89,33 @@ export default async function EspacePage() {
     if (tuesdayEvent) {
       nextEvent = tuesdayEvent;
     } else {
-      nextTuesdayFallback = true;
+      const admin = getAdminClient();
+      const y = nextTuesday.getFullYear();
+      const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
+      const d = String(nextTuesday.getDate()).padStart(2, "0");
+      const dateStr = `${y}-${m}-${d}`;
+      const slug = `mardi-coworking-${dateStr.replace(/-/g, "")}`;
+      const { data: created, error: createErr } = await admin
+        .from("events")
+        .upsert({
+          title: "Présentation des biens & échanges",
+          slug,
+          category: "mardi-coworking",
+          location: "Roazhon Kastell, Rennes",
+          starts_at: `${dateStr}T09:30:00`,
+          ends_at: `${dateStr}T10:30:00`,
+          status: "publie",
+          visibility: "public",
+          created_by: profile.id,
+        }, { onConflict: "slug" })
+        .select("id, title, starts_at, ends_at")
+        .single();
+
+      if (created) {
+        nextEvent = created;
+      } else {
+        nextTuesdayFallback = true;
+      }
     }
   }
 
