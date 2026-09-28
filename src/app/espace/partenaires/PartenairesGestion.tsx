@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import PartenaireEdit from "./PartenaireEdit";
+import type { Partner as FullPartner, PartnerContact as FullPartnerContact } from "@/lib/supabase/types";
 
 interface PartnerContact {
   id: string;
@@ -57,6 +59,7 @@ export default function PartenairesGestion({
   const [grantEmail, setGrantEmail] = useState("");
   const [grantLoading, setGrantLoading] = useState(false);
   const [grantedPartners, setGrantedPartners] = useState<Set<string>>(new Set());
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
   const filtered = partners.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()),
@@ -126,6 +129,26 @@ export default function PartenairesGestion({
     setGrantedPartners((prev) => new Set([...prev, partnerId]));
     setGrantingAccess(null);
     setGrantEmail("");
+  }
+
+  if (editingPartner) {
+    return (
+      <div>
+        <button
+          onClick={() => setEditingPartner(null)}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Retour à la liste
+        </button>
+        <PartenaireEdit
+          partner={editingPartner as unknown as FullPartner}
+          contacts={(editingPartner.partner_contacts || []) as unknown as FullPartnerContact[]}
+        />
+      </div>
+    );
   }
 
   return (
@@ -385,7 +408,16 @@ export default function PartenairesGestion({
                   )}
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-zinc-100">
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-100">
+                  <button
+                    onClick={() => setEditingPartner(partner)}
+                    className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 inline-flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                    </svg>
+                    Modifier la fiche
+                  </button>
                   {partner.status === "soumis" && (
                     <>
                       <button
