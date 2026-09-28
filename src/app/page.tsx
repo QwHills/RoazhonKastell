@@ -156,7 +156,7 @@ function EventSection() {
             {/* Photo zone */}
             <div className="event-photo flex-shrink-0 relative bg-zinc-100 overflow-hidden">
               <img
-                src="/photo-coworking.webp"
+                src="/photo-coworking.jpg"
                 alt="Mardi coworking au château"
                 className="absolute inset-0 w-full h-full object-cover"
               />
