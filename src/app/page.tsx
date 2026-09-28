@@ -158,7 +158,7 @@ function EventSection() {
               <img
                 src="/photo-coworking.jpg"
                 alt="Mardi coworking au château"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover saturate-[0.85] brightness-[1.05] contrast-[1.05]"
               />
             </div>
             {/* Content */}
