@@ -1,20 +1,31 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, canManageMembers, hasRole } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import PartenairesGestion from "./PartenairesGestion";
 import PartenaireEdit from "./PartenaireEdit";
 import CreatePartnerForm from "./CreatePartnerForm";
+
+export const dynamic = "force-dynamic";
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export default async function PartenairesPage() {
   const profile = await getCurrentUser();
   if (!profile) redirect("/?login=1");
 
-  const supabase = await createClient();
   const isManager = canManageMembers(profile);
   const isPartner = hasRole(profile, "partenaire");
 
   if (isManager) {
-    const { data: partners } = await supabase
+    const admin = getAdminClient();
+    const { data: partners } = await admin
       .from("partners")
       .select("*, partner_contacts(*)")
       .order("name");
@@ -23,14 +34,16 @@ export default async function PartenairesPage() {
   }
 
   if (isPartner) {
-    const { data: membership } = await supabase
+    const admin = getAdminClient();
+
+    const { data: membership } = await admin
       .from("partner_members")
       .select("partner_id")
       .eq("user_id", profile.id)
       .single();
 
     if (membership) {
-      const { data: partner } = await supabase
+      const { data: partner } = await admin
         .from("partners")
         .select("*, partner_contacts(*)")
         .eq("id", membership.partner_id)
