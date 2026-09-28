@@ -19,6 +19,9 @@ export async function DELETE(request: Request) {
 
   const admin = getAdminClient();
 
+  await admin.from("events").update({ created_by: profile.id }).eq("created_by", userId);
+  await admin.from("atelier_actions").update({ validated_by: null }).eq("validated_by", userId);
+
   const { error: profileError } = await admin
     .from("profiles")
     .delete()
