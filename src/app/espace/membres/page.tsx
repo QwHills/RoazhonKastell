@@ -17,5 +17,17 @@ export default async function MembresPage() {
     .order("first_name", { ascending: true })
     .order("last_name", { ascending: true });
 
-  return <MembresClient members={members || []} />;
+  const { data: partnerLinks } = await supabase
+    .from("partner_members")
+    .select("user_id, partners(name)");
+
+  const partnerNames: Record<string, string> = {};
+  if (partnerLinks) {
+    for (const link of partnerLinks) {
+      const p = link.partners as unknown as { name: string } | null;
+      if (p?.name) partnerNames[link.user_id] = p.name;
+    }
+  }
+
+  return <MembresClient members={members || []} partnerNames={partnerNames} />;
 }

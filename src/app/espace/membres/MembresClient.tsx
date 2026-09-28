@@ -38,8 +38,10 @@ const ALL_ROLES: UserRole[] = [
 
 export default function MembresClient({
   members: initialMembers,
+  partnerNames = {},
 }: {
   members: Profile[];
+  partnerNames?: Record<string, string>;
 }) {
   const [members, setMembers] = useState(initialMembers);
   const [search, setSearch] = useState("");
@@ -202,6 +204,7 @@ export default function MembresClient({
               <MemberRow
                 key={member.id}
                 member={member}
+                partnerName={partnerNames[member.id]}
                 isEditing={editingId === member.id}
                 onEdit={() => setEditingId(member.id)}
                 onCancel={() => setEditingId(null)}
@@ -283,6 +286,7 @@ export default function MembresClient({
 
 function MemberRow({
   member,
+  partnerName,
   isEditing,
   onEdit,
   onCancel,
@@ -290,6 +294,7 @@ function MemberRow({
   onDelete,
 }: {
   member: Profile;
+  partnerName?: string;
   isEditing: boolean;
   onEdit: () => void;
   onCancel: () => void;
@@ -318,8 +323,13 @@ function MemberRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-zinc-900">
-              {member.first_name} {member.last_name}
+              {member.first_name || member.last_name
+                ? `${member.first_name} ${member.last_name}`.trim()
+                : partnerName || member.email}
             </span>
+            {partnerName && (member.first_name || member.last_name) && (
+              <span className="text-sm text-zinc-500">— {partnerName}</span>
+            )}
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[member.member_status]}`}>
               {STATUS_LABELS[member.member_status]}
             </span>
