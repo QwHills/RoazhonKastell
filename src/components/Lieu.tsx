@@ -37,13 +37,6 @@ export default function Lieu() {
   return (
     <section id="lieu" className="pt-6 sm:pt-8 pb-8 sm:pb-10 bg-white">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        <p
-          className="text-xs font-semibold tracking-widest text-zinc-400 mb-5"
-          style={{ letterSpacing: "0.15em" }}
-        >
-          LE LIEU
-        </p>
-
         {/* Photo banner with overlay text */}
         <div
           className="relative overflow-hidden"

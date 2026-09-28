@@ -110,7 +110,7 @@ function VideoCard({ video }: { video: Video }) {
 
 export default function Videos() {
   return (
-    <section id="videos" className="py-20 sm:py-28 bg-zinc-50">
+    <section id="videos" className="py-12 sm:py-16 bg-zinc-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-14">
           <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight">
