@@ -26,28 +26,45 @@ export async function GET(request: Request) {
     session = created;
   }
 
-  // If today is the session date and it's completed, check if user wants next week
+  // If session is completed, counselors see next week — but only after 9:30 AM Paris time on session day
   if (session.status === "completed" && dateParam === getNextTuesdayDate()) {
-    const nextWeek = new Date(dateParam + "T12:00:00");
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const nextDate = nextWeek.toISOString().split("T")[0];
-
     const role = url.searchParams.get("role");
     if (role === "conseiller") {
-      let { data: nextSession } = await admin
-        .from("tuesday_sessions")
-        .select("*")
-        .eq("session_date", nextDate)
-        .single();
-      if (!nextSession) {
-        const { data: created } = await admin
-          .from("tuesday_sessions")
-          .insert({ session_date: nextDate })
-          .select()
-          .single();
-        nextSession = created;
+      const now = new Date();
+      const dateFmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
+      });
+      const todayParis = dateFmt.format(now);
+
+      let shouldJump = todayParis > dateParam;
+      if (!shouldJump && todayParis === dateParam) {
+        const timeFmt = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", hour12: false,
+        });
+        const [h, m] = timeFmt.format(now).split(":").map(Number);
+        shouldJump = h > 9 || (h === 9 && m >= 30);
       }
-      session = nextSession;
+
+      if (shouldJump) {
+        const nextWeek = new Date(dateParam + "T12:00:00");
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextDate = nextWeek.toISOString().split("T")[0];
+
+        let { data: nextSession } = await admin
+          .from("tuesday_sessions")
+          .select("*")
+          .eq("session_date", nextDate)
+          .single();
+        if (!nextSession) {
+          const { data: created } = await admin
+            .from("tuesday_sessions")
+            .insert({ session_date: nextDate })
+            .select()
+            .single();
+          nextSession = created;
+        }
+        session = nextSession;
+      }
     }
   }
 
