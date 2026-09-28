@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, canManageMembers } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/mardi";
 
 export async function DELETE(request: Request) {
   const profile = await getCurrentUser();
@@ -17,10 +17,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Impossible de supprimer votre propre compte" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const admin = getAdminClient();
 
-  // Supprimer le profil
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from("profiles")
     .delete()
     .eq("id", userId);
@@ -29,19 +28,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  // Supprimer le user auth via l'admin API
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (supabaseUrl && serviceRoleKey) {
-    await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-      method: "DELETE",
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-    });
-  }
+  await admin.auth.admin.deleteUser(userId);
 
   return NextResponse.json({ ok: true });
 }
