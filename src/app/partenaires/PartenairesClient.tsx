@@ -52,7 +52,7 @@ export default function PartenairesClient({ partners }: { partners: PartnerRow[]
   }
 
   return (
-    <main className="min-h-screen bg-white pt-16">
+    <main className="min-h-screen bg-white pt-16 overflow-x-hidden">
       {/* Hero */}
       <section className="relative overflow-hidden bg-zinc-900">
         <Image
@@ -165,7 +165,7 @@ function PartnerCard({ partner }: { partner: PartnerRow }) {
   const href = partner.slug ? `/partenaires/${partner.slug}` : null;
 
   const card = (
-    <article className="bg-white border border-zinc-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-zinc-300 transition-all group">
+    <article className="bg-white border border-zinc-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-zinc-300 transition-all group min-w-0">
       {/* Photo de couverture */}
       <div className="relative h-32 sm:h-44 bg-zinc-100">
         {partner.cover_photo ? (
