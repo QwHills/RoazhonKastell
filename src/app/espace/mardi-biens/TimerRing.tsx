@@ -7,13 +7,14 @@ interface TimerRingProps {
   timerState: { status: string; remaining_ms: number; started_at: string | null };
   onFinish?: () => void;
   onSync?: (state: { status: string; remaining_ms: number; started_at: string | null }) => void;
+  compact?: boolean;
 }
 
 const TOTAL_MS = 60000;
 const RADIUS = 54;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export default function TimerRing({ sessionId, timerState, onFinish, onSync }: TimerRingProps) {
+export default function TimerRing({ sessionId, timerState, onFinish, onSync, compact }: TimerRingProps) {
   const [remaining, setRemaining] = useState(timerState.remaining_ms);
   const [status, setStatus] = useState(timerState.status);
   const animRef = useRef<number>(0);
@@ -81,7 +82,7 @@ export default function TimerRing({ sessionId, timerState, onFinish, onSync }: T
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative w-36 h-36">
+      <div className={"relative " + (compact ? "w-24 h-24" : "w-36 h-36")}>
         <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="currentColor" strokeWidth="6" className="text-zinc-100" />
           <circle
@@ -97,7 +98,7 @@ export default function TimerRing({ sessionId, timerState, onFinish, onSync }: T
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-3xl font-bold tabular-nums ${isUrgent && status !== "finished" ? "text-orange-500" : "text-zinc-900"}`}>
+          <span className={`${compact ? 'text-xl' : 'text-3xl'} font-bold tabular-nums ${isUrgent && status !== "finished" ? "text-orange-500" : "text-zinc-900"}`}>
             {secs}s
           </span>
         </div>

@@ -105,6 +105,10 @@ function PropertyMap({ lat, lng }: { lat: number; lng: number }) {
     document.head.appendChild(script);
 
     return () => {
+      if (leafletRef.current) {
+        (leafletRef.current as { remove: () => void }).remove();
+        leafletRef.current = null;
+      }
       link.remove();
       script.remove();
     };
@@ -284,102 +288,64 @@ export default function PresentationMode({ session: initialSession, properties: 
           <>
             {/* Left: Property */}
             <div className="flex-1 flex flex-col p-6 lg:p-10 overflow-y-auto">
-              <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-                {(() => {
-                  const allPhotos = prop.photos?.length > 0 ? prop.photos : prop.photo_url ? [prop.photo_url] : [];
-                  if (allPhotos.length > 0) {
-                    return (
-                      <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6 bg-zinc-200 relative group">
-                        <img src={allPhotos[photoIndex] || allPhotos[0]} alt="" className="w-full h-full object-cover transition-opacity" />
-                        {allPhotos.length > 1 && (
-                          <>
-                            <button
-                              onClick={() => setPhotoIndex((i) => (i - 1 + allPhotos.length) % allPhotos.length)}
-                              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setPhotoIndex((i) => (i + 1) % allPhotos.length)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                              </svg>
-                            </button>
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/50 text-white text-xs rounded-full">
-                              {photoIndex + 1} / {allPhotos.length}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="w-full aspect-[4/3] rounded-2xl mb-6 bg-zinc-100 flex items-center justify-center">
-                      <svg className="w-20 h-20 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
-                      </svg>
-                    </div>
-                  );
-                })()}
+              <div className="flex-1 flex flex-col items-start max-w-5xl mx-auto w-full">
+                {prop.latitude && prop.longitude && (
+                  <div className="w-full h-80 rounded-2xl overflow-hidden mb-6 border border-zinc-200">
+                    <PropertyMap lat={prop.latitude} lng={prop.longitude} />
+                  </div>
+                )}
 
-                <div className="w-full">
-                  <div className="flex items-baseline gap-2 mb-1">
+                <div className="w-full mb-6">
+                  <div className="flex items-baseline gap-3 mb-2">
                     {prop.property_type && (
-                      <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{prop.property_type}</span>
+                      <span className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">{prop.property_type}</span>
                     )}
                     {prop.transaction_type && (
-                      <span className="text-xs text-zinc-400">· {prop.transaction_type}</span>
+                      <span className="text-sm text-zinc-400">· {prop.transaction_type}</span>
                     )}
                   </div>
+                  {prop.price != null && (
+                    <p className="text-4xl font-extrabold text-zinc-900 mb-2">{prop.price.toLocaleString("fr-FR")} €</p>
+                  )}
                   <h2 className="text-2xl font-bold text-zinc-900 mb-1">{prop.city || "Localisation non renseignée"}</h2>
                   {prop.address && (
-                    <p className="text-sm text-zinc-500 mb-2 flex items-center gap-1.5">
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <p className="text-lg text-zinc-500 mb-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                       </svg>
                       {prop.address}
                     </p>
                   )}
-                  {prop.price != null && (
-                    <p className="text-xl font-bold text-zinc-900 mb-4">{prop.price.toLocaleString("fr-FR")} €</p>
-                  )}
-
-                  {prop.latitude && prop.longitude && (
-                    <div className="w-full h-64 rounded-xl overflow-hidden mb-4 border border-zinc-200">
-                      <PropertyMap lat={prop.latitude} lng={prop.longitude} />
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-4 text-sm text-zinc-500">
+                  <div className="flex flex-wrap gap-6 text-lg text-zinc-600">
                     {prop.living_area != null && (
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <span className="flex items-center gap-2 font-semibold">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                         </svg>
                         {prop.living_area} m²
                       </span>
                     )}
                     {prop.rooms != null && (
-                      <span>{prop.rooms} pièce{prop.rooms > 1 ? "s" : ""}</span>
+                      <span className="font-semibold">{prop.rooms} pièce{prop.rooms > 1 ? "s" : ""}</span>
                     )}
                     {prop.bedrooms != null && (
-                      <span>{prop.bedrooms} chambre{prop.bedrooms > 1 ? "s" : ""}</span>
+                      <span className="font-semibold">{prop.bedrooms} chambre{prop.bedrooms > 1 ? "s" : ""}</span>
+                    )}
+                    {prop.land_area != null && (
+                      <span className="font-semibold">Terrain {prop.land_area} m²</span>
                     )}
                     {prop.dpe_energy_class && (
-                      <span className="flex items-center gap-1.5">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-white ${DPE_COLORS[prop.dpe_energy_class] || "bg-zinc-400"}`}>
+                      <span className="flex items-center gap-2">
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-sm font-bold text-white ${DPE_COLORS[prop.dpe_energy_class] || "bg-zinc-400"}`}>
                           {prop.dpe_energy_class}
                         </span>
                         DPE{prop.dpe_energy_value ? ` ${prop.dpe_energy_value} kWh` : ""}
                       </span>
                     )}
                     {prop.dpe_ges_class && (
-                      <span className="flex items-center gap-1.5">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-white ${DPE_COLORS[prop.dpe_ges_class] || "bg-zinc-400"}`}>
+                      <span className="flex items-center gap-2">
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-sm font-bold text-white ${DPE_COLORS[prop.dpe_ges_class] || "bg-zinc-400"}`}>
                           {prop.dpe_ges_class}
                         </span>
                         GES
@@ -387,15 +353,50 @@ export default function PresentationMode({ session: initialSession, properties: 
                     )}
                   </div>
                 </div>
+
+                {(() => {
+                  const allPhotos = prop.photos?.length > 0 ? prop.photos : prop.photo_url ? [prop.photo_url] : [];
+                  if (allPhotos.length > 0) {
+                    return (
+                      <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden mb-6 bg-zinc-200 relative group">
+                        <img src={allPhotos[photoIndex] || allPhotos[0]} alt="" className="w-full h-full object-cover transition-opacity" />
+                        {allPhotos.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setPhotoIndex((i) => (i - 1 + allPhotos.length) % allPhotos.length)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setPhotoIndex((i) => (i + 1) % allPhotos.length)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </button>
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/50 text-white text-sm rounded-full">
+                              {photoIndex + 1} / {allPhotos.length}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
 
             {/* Right: Counselor + Timer */}
-            <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-200 bg-white flex flex-col items-center justify-center p-8">
+            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-zinc-200 bg-white flex flex-col items-center justify-center p-6">
               <div className="flex flex-col items-center gap-6 w-full max-w-xs">
                 {/* Counselor */}
                 <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-full bg-zinc-100 overflow-hidden mb-3">
+                  <div className="w-16 h-16 rounded-full bg-zinc-100 overflow-hidden mb-2">
                     {owner.photo_url ? (
                       <img src={owner.photo_url} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -406,7 +407,7 @@ export default function PresentationMode({ session: initialSession, properties: 
                       </div>
                     )}
                   </div>
-                  <p className="text-lg font-semibold text-zinc-900">{owner.first_name} {owner.last_name}</p>
+                  <p className="text-base font-semibold text-zinc-900">{owner.first_name} {owner.last_name}</p>
                   <p className="text-sm text-zinc-400">Présente-nous ton bien</p>
                 </div>
 
@@ -437,6 +438,7 @@ export default function PresentationMode({ session: initialSession, properties: 
                       timerState={session.timer_state}
                       onFinish={() => {}}
                       onSync={(ts) => setSession((s) => ({ ...s, timer_state: ts }))}
+                      compact
                     />
 
                     {/* Prompts */}
