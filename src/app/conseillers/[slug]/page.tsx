@@ -33,7 +33,7 @@ export default async function ConseillerPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("first_name, last_name")
+    .select("first_name, last_name, bio, city, specialties")
     .eq("member_status", "actif")
     .not("roles", "cs", '{"partenaire"}');
 
@@ -47,7 +47,8 @@ export default async function ConseillerPage({
   const photoUrl = profile?.photo
     ? `${profile.photo}?format=auto&width=320`
     : null;
-  const city = profile?.city;
+  const city = (member.city as string | null) || profile?.city || null;
+  const bio = member.bio as string | null;
   const initials = getInitials(member.first_name, member.last_name);
   const miniSiteUrl = buildIadMiniSiteUrl(member.first_name, member.last_name);
 
@@ -114,7 +115,14 @@ export default async function ConseillerPage({
             </div>
           </div>
 
-          <div className="mt-10 pt-8 border-t border-zinc-100">
+          {bio && (
+            <div className="mt-10 pt-8 border-t border-zinc-100">
+              <h2 className="text-lg font-semibold text-zinc-900 mb-3">À propos</h2>
+              <p className="text-sm text-zinc-600 leading-relaxed">{bio}</p>
+            </div>
+          )}
+
+          <div className={`${bio ? "mt-6" : "mt-10"} pt-8 border-t border-zinc-100`}>
             <h2 className="text-lg font-semibold text-zinc-900 mb-3">Réseau</h2>
             <p className="text-sm text-zinc-600">
               Membre du réseau <strong>Roazhon Kastell</strong>, un collectif de conseillers immobiliers
