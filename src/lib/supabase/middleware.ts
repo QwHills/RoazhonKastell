@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/auth/callback", "/auth/confirm"];
+const PUBLIC_PATHS = ["/", "/auth/callback", "/auth/confirm", "/inscription"];
 const PUBLIC_PREFIXES = ["/conseillers", "/partenaires", "/agenda"];
 
 export async function updateSession(request: NextRequest) {
