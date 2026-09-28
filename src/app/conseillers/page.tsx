@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { fetchMembersFromSheet } from "@/lib/sheets";
 import { createClient } from "@supabase/supabase-js";
 import { getIadSlug } from "@/lib/iad-utils";
 import Header from "@/components/Header";
@@ -9,35 +8,33 @@ import type { UserRole } from "@/lib/supabase/types";
 
 export const revalidate = 3600;
 
-const SPECIAL_ROLES: UserRole[] = ["associe", "membre_executif", "gestionnaire_evenements"];
+export type ConseillerMember = {
+  firstName: string;
+  lastName: string;
+  slug: string;
+  roles: UserRole[];
+};
 
 export default async function ConseillersPage() {
-  const members = await fetchMembersFromSheet();
-  const sorted = members.sort((a, b) =>
-    a.firstName.localeCompare(b.firstName, "fr", { sensitivity: "base" }),
-  );
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
+
   const { data: profiles } = await supabase
     .from("profiles")
     .select("first_name, last_name, roles")
     .eq("member_status", "actif")
-    .not("roles", "cs", '{"partenaire"}');
+    .not("roles", "cs", '{"partenaire"}')
+    .order("first_name", { ascending: true });
 
-  const roleMap: Record<string, UserRole[]> = {};
-  if (profiles) {
-    for (const p of profiles) {
-      const special = (p.roles as UserRole[]).filter((r) => SPECIAL_ROLES.includes(r));
-      if (special.length > 0) {
-        const slug = getIadSlug(p.first_name, p.last_name);
-        roleMap[slug] = special;
-      }
-    }
-  }
+  const members: ConseillerMember[] = (profiles || []).map((p) => ({
+    firstName: p.first_name as string,
+    lastName: p.last_name as string,
+    slug: getIadSlug(p.first_name, p.last_name),
+    roles: (p.roles as UserRole[]) || [],
+  }));
 
   return (
     <>
@@ -59,7 +56,7 @@ export default async function ConseillersPage() {
               </p>
             </div>
 
-            <ConseillersSearch members={sorted} roleMap={roleMap} />
+            <ConseillersSearch members={members} />
           </div>
         </section>
       </main>

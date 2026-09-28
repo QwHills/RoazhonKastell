@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { fetchMembersFromSheet } from "@/lib/sheets";
+import { createClient } from "@supabase/supabase-js";
 import { getIadSlug, buildIadMiniSiteUrl, getInitials } from "@/lib/iad-utils";
 import PROFILES from "@/data/conseillers-profiles";
 import Header from "@/components/Header";
@@ -9,26 +9,47 @@ import Footer from "@/components/Footer";
 
 export const revalidate = 3600;
 
+function lookupProfile(slug: string) {
+  if (slug in PROFILES) return PROFILES[slug];
+  const canonical = slug.replace(/-/g, "");
+  for (const [key, value] of Object.entries(PROFILES)) {
+    if (key.replace(/-/g, "") === canonical) return value;
+  }
+  return undefined;
+}
+
 export default async function ConseillerPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const members = await fetchMembersFromSheet();
 
-  const member = members.find(
-    (m) => getIadSlug(m.firstName, m.lastName) === slug,
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("first_name, last_name")
+    .eq("member_status", "actif")
+    .not("roles", "cs", '{"partenaire"}');
+
+  const member = (profiles || []).find(
+    (p) => getIadSlug(p.first_name, p.last_name) === slug,
   );
 
   if (!member) notFound();
 
-  const profile = PROFILES[slug];
-  const rawPhoto = profile?.photo || member.photoUrl;
-  const photoUrl = rawPhoto ? `${rawPhoto}?format=auto&width=320` : null;
+  const profile = lookupProfile(slug);
+  const photoUrl = profile?.photo
+    ? `${profile.photo}?format=auto&width=320`
+    : null;
   const city = profile?.city;
-  const initials = getInitials(member.firstName, member.lastName);
-  const miniSiteUrl = member.miniSiteUrl || buildIadMiniSiteUrl(member.firstName, member.lastName);
+  const initials = getInitials(member.first_name, member.last_name);
+  const miniSiteUrl = buildIadMiniSiteUrl(member.first_name, member.last_name);
 
   return (
     <>
@@ -53,7 +74,7 @@ export default async function ConseillerPage({
               {photoUrl ? (
                 <img
                   src={photoUrl}
-                  alt={`${member.firstName} ${member.lastName}`}
+                  alt={`${member.first_name} ${member.last_name}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -63,7 +84,7 @@ export default async function ConseillerPage({
 
             <div className="text-center sm:text-left flex-1">
               <h1 className="text-3xl font-bold text-zinc-900">
-                {member.firstName} {member.lastName}
+                {member.first_name} {member.last_name}
               </h1>
               <p className="text-zinc-500 mt-1">Conseiller immobilier IAD France</p>
 

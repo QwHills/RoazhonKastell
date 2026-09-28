@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import type { SheetMember } from "@/lib/sheets";
-import { getIadSlug, getInitials } from "@/lib/iad-utils";
+import type { ConseillerMember } from "./page";
+import { getInitials } from "@/lib/iad-utils";
 import PROFILES from "@/data/conseillers-profiles";
 import type { UserRole } from "@/lib/supabase/types";
 import {
@@ -19,20 +19,28 @@ const ROLE_LABELS: Partial<Record<UserRole, string>> = {
   gestionnaire_evenements: "Gestion événements",
 };
 
+const SPECIAL_ROLES: UserRole[] = ["associe", "membre_executif", "gestionnaire_evenements"];
+
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-type EnrichedMember = SheetMember & {
-  slug: string;
+function lookupProfile(slug: string) {
+  if (slug in PROFILES) return PROFILES[slug];
+  const canonical = slug.replace(/-/g, "");
+  for (const [key, value] of Object.entries(PROFILES)) {
+    if (key.replace(/-/g, "") === canonical) return value;
+  }
+  return undefined;
+}
+
+type EnrichedMember = ConseillerMember & {
   city: string | undefined;
   coords: { lat: number; lng: number } | null;
 };
 
 export default function ConseillersSearch({
   members,
-  roleMap,
 }: {
-  members: SheetMember[];
-  roleMap: Record<string, UserRole[]>;
+  members: ConseillerMember[];
 }) {
   const [search, setSearch] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
@@ -56,11 +64,10 @@ export default function ConseillersSearch({
   const enriched = useMemo<EnrichedMember[]>(
     () =>
       members.map((m) => {
-        const slug = getIadSlug(m.firstName, m.lastName);
-        const profile = PROFILES[slug];
+        const profile = lookupProfile(m.slug);
         const city = profile?.city || undefined;
         const coords = city ? getCoordsFromCityString(city) : null;
-        return { ...m, slug, city, coords };
+        return { ...m, city, coords };
       }),
     [members],
   );
@@ -282,7 +289,6 @@ export default function ConseillersSearch({
               key={`${member.firstName}-${member.lastName}`}
               member={member}
               distance={member.distance}
-              roles={roleMap[member.slug]}
             />
           ))}
         </div>
@@ -298,16 +304,17 @@ export default function ConseillersSearch({
 function ConseillerCard({
   member,
   distance,
-  roles,
 }: {
   member: EnrichedMember;
   distance?: number;
-  roles?: UserRole[];
 }) {
   const initials = getInitials(member.firstName, member.lastName);
-  const profile = PROFILES[member.slug];
-  const rawPhoto = profile?.photo || member.photoUrl;
-  const photoUrl = rawPhoto ? `${rawPhoto}?format=auto&width=160` : null;
+  const profile = lookupProfile(member.slug);
+  const photoUrl = profile?.photo
+    ? `${profile.photo}?format=auto&width=160`
+    : null;
+
+  const specialRoles = member.roles.filter((r) => SPECIAL_ROLES.includes(r));
 
   return (
     <Link
@@ -338,9 +345,9 @@ function ConseillerCard({
 
       <p className="text-sm text-zinc-500 mt-1">Conseiller IAD</p>
 
-      {roles && roles.length > 0 && (
+      {specialRoles.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1.5 justify-center">
-          {roles.map((role) => (
+          {specialRoles.map((role) => (
             <span
               key={role}
               className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
