@@ -14,7 +14,6 @@ export default async function MembresPage() {
   const { data: members } = await supabase
     .from("profiles")
     .select("*")
-    .not("roles", "cs", '{"partenaire"}')
     .order("first_name", { ascending: true })
     .order("last_name", { ascending: true });
 
