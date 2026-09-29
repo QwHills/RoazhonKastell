@@ -14,7 +14,7 @@ export default function Footer() {
             <Link href="/conseillers" className="hover:text-zinc-900 transition-colors">Conseillers</Link>
             <Link href="/partenaires" className="hover:text-zinc-900 transition-colors">Partenaires</Link>
             <Link href="/agenda" className="hover:text-zinc-900 transition-colors">Agenda</Link>
-            <a href="mailto:roazhonkastell@gmail.com" className="hover:text-zinc-900 transition-colors">Contact</a>
+            <a href="mailto:gianni.schiariti@iadfrance.fr" className="hover:text-zinc-900 transition-colors">Contact</a>
           </nav>
         </div>
         <p className="text-xs text-zinc-300 mt-6 text-center sm:text-left">
