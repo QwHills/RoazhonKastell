@@ -27,7 +27,7 @@ export default async function EspacePage() {
     const day = today.getDay();
     const diff = day <= 2 ? 2 - day : 9 - day;
     const next = new Date(today);
-    next.setDate(today.getDate() + (diff === 0 && new Date() < new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12) ? 0 : diff === 0 ? 7 : diff));
+    next.setDate(today.getDate() + (diff === 0 && new Date() < new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 30) ? 0 : diff === 0 ? 7 : diff));
     return next;
   }
 
