@@ -22,12 +22,14 @@ export default async function EspacePage() {
   const now = new Date().toISOString();
 
   function getNextTuesday(): Date {
-    const today = new Date();
+    const parisNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    const today = new Date(parisNow);
     today.setHours(0, 0, 0, 0);
     const day = today.getDay();
     const diff = day <= 2 ? 2 - day : 9 - day;
+    const isPastEvent = parisNow.getHours() > 10 || (parisNow.getHours() === 10 && parisNow.getMinutes() >= 30);
     const next = new Date(today);
-    next.setDate(today.getDate() + (diff === 0 && new Date() < new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 30) ? 0 : diff === 0 ? 7 : diff));
+    next.setDate(today.getDate() + (diff === 0 && !isPastEvent ? 0 : diff === 0 ? 7 : diff));
     return next;
   }
 
