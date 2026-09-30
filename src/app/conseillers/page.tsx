@@ -13,6 +13,7 @@ export type ConseillerMember = {
   lastName: string;
   slug: string;
   roles: UserRole[];
+  photoUrl: string | null;
 };
 
 export default async function ConseillersPage() {
@@ -24,7 +25,7 @@ export default async function ConseillersPage() {
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("first_name, last_name, roles")
+    .select("first_name, last_name, roles, photo_url")
     .eq("member_status", "actif")
     .not("roles", "cs", '{"partenaire"}')
     .order("first_name", { ascending: true });
@@ -34,6 +35,7 @@ export default async function ConseillersPage() {
     lastName: p.last_name as string,
     slug: getIadSlug(p.first_name, p.last_name),
     roles: (p.roles as UserRole[]) || [],
+    photoUrl: (p.photo_url as string | null) || null,
   }));
 
   return (

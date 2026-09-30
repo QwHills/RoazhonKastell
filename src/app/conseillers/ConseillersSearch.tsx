@@ -310,9 +310,8 @@ function ConseillerCard({
 }) {
   const initials = getInitials(member.firstName, member.lastName);
   const profile = lookupProfile(member.slug);
-  const photoUrl = profile?.photo
-    ? `${profile.photo}?format=auto&width=160`
-    : null;
+  const photoUrl = member.photoUrl
+    || (profile?.photo ? `${profile.photo}?format=auto&width=160` : null);
 
   const specialRoles = member.roles.filter((r) => SPECIAL_ROLES.includes(r));
 

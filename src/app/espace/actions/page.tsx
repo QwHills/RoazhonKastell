@@ -14,7 +14,7 @@ export default async function MesActionsPage() {
 
   const { data: myTracking } = await supabase
     .from("user_action_tracking")
-    .select("id, status, created_at, updated_at, action_id, atelier_actions!inner(title, instruction, duration_minutes, event_id, events!inner(title, starts_at))")
+    .select("id, status, created_at, updated_at, action_id, atelier_actions!inner(title, instruction, duration_minutes, event_id, events(title, starts_at))")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -25,7 +25,7 @@ export default async function MesActionsPage() {
       instruction: string;
       duration_minutes: number;
       event_id: string;
-      events: { title: string; starts_at: string };
+      events: { title: string; starts_at: string } | null;
     };
     return {
       id: t.id,
@@ -34,8 +34,8 @@ export default async function MesActionsPage() {
       instruction: action.instruction,
       duration: action.duration_minutes,
       status: t.status as string,
-      eventTitle: action.events.title,
-      eventDate: action.events.starts_at,
+      eventTitle: action.events?.title || "Atelier",
+      eventDate: action.events?.starts_at || t.created_at,
       updatedAt: t.updated_at,
     };
   });

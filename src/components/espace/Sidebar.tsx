@@ -146,8 +146,12 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       {/* Bottom: user card + logout */}
       <div className="border-t border-white/15 p-3">
         <div className="flex items-center gap-3 px-3 py-3">
-          <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-            {initials}
+          <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs font-bold flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {profile.photo_url ? (
+              <img src={profile.photo_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">

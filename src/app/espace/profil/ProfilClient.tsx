@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/supabase/types";
 
@@ -16,6 +16,77 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState("");
+  const [photoUrl, setPhotoUrl] = useState(initial.photo_url || "");
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoMessage, setPhotoMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const initials = `${(firstName || "")[0] || ""}${(lastName || "")[0] || ""}`.toUpperCase();
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setPhotoMessage("Veuillez sélectionner une image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoMessage("L'image ne doit pas dépasser 5 Mo.");
+      return;
+    }
+
+    setPhotoUploading(true);
+    setPhotoMessage("");
+
+    const supabase = createClient();
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${initial.id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("photos")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      setPhotoUploading(false);
+      setPhotoMessage("Erreur lors de l'envoi de la photo.");
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ photo_url: urlData.publicUrl })
+      .eq("id", initial.id);
+
+    setPhotoUploading(false);
+
+    if (updateError) {
+      setPhotoMessage("Photo envoyée mais erreur lors de la mise à jour du profil.");
+    } else {
+      setPhotoUrl(publicUrl);
+      setPhotoMessage("Photo mise à jour !");
+      setTimeout(() => setPhotoMessage(""), 3000);
+    }
+  }
+
+  async function handleRemovePhoto() {
+    setPhotoUploading(true);
+    setPhotoMessage("");
+
+    const supabase = createClient();
+    await supabase
+      .from("profiles")
+      .update({ photo_url: null })
+      .eq("id", initial.id);
+
+    setPhotoUrl("");
+    setPhotoUploading(false);
+    setPhotoMessage("Photo supprimée.");
+    setTimeout(() => setPhotoMessage(""), 3000);
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +119,66 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold text-zinc-900 mb-1">Mon profil</h1>
       <p className="text-zinc-500 mb-8">Modifiez vos informations personnelles.</p>
+
+      {/* Photo de profil */}
+      <div className="mb-8 flex items-center gap-6">
+        <div className="relative group">
+          <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {photoUrl ? (
+              <img src={photoUrl} alt="Photo de profil" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl font-bold text-zinc-400">{initials}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoUploading}
+            className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoUpload}
+            className="hidden"
+          />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-zinc-700">Photo de profil</p>
+          <p className="text-xs text-zinc-400 mt-0.5">JPG, PNG. 5 Mo max.</p>
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoUploading}
+              className="text-xs font-medium text-zinc-900 hover:text-zinc-600 transition-colors disabled:opacity-50"
+            >
+              {photoUploading ? "Envoi…" : "Changer la photo"}
+            </button>
+            {photoUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={photoUploading}
+                className="text-xs text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
+          {photoMessage && (
+            <p className={`text-xs mt-1 ${photoMessage.startsWith("Erreur") ? "text-red-500" : "text-emerald-600"}`}>
+              {photoMessage}
+            </p>
+          )}
+        </div>
+      </div>
 
       <form onSubmit={handleSave} className="space-y-5">
         <div className="grid sm:grid-cols-2 gap-4">
