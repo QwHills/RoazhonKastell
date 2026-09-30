@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AgendaParticipeButton from "./AgendaParticipeButton";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,18 @@ export default async function AgendaPage() {
 
   allEvents.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
 
+  const realEventIds = allEvents.filter((e) => !e.isRecurring).map((e) => e.id);
+  const { data: registrations } = realEventIds.length > 0
+    ? await supabase
+        .from("event_registrations")
+        .select("event_id")
+        .eq("user_id", profile.id)
+        .eq("status", "inscrit")
+        .in("event_id", realEventIds)
+    : { data: [] };
+
+  const registeredSet = new Set((registrations || []).map((r) => r.event_id));
+
   const grouped = new Map<string, AgendaEvent[]>();
   for (const event of allEvents) {
     const date = new Date(event.starts_at).toLocaleDateString("fr-FR", {
@@ -131,6 +144,7 @@ export default async function AgendaPage() {
                   const end = event.ends_at ? new Date(event.ends_at) : null;
                   const timeStr = `${start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}${end ? ` – ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}` : ""}`;
                   const isMardi = event.category === "mardi-coworking";
+                  const isReal = !event.isRecurring;
 
                   return (
                     <div
@@ -149,6 +163,12 @@ export default async function AgendaPage() {
                               </svg>
                               {event.location}
                             </p>
+                          )}
+                          {isReal && (
+                            <AgendaParticipeButton
+                              eventId={event.id}
+                              initialRegistered={registeredSet.has(event.id)}
+                            />
                           )}
                         </div>
                         {isMardi && (
