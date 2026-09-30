@@ -232,14 +232,14 @@ export default async function EspacePage() {
               {otherTuesdayEvents.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">Ateliers du jour</p>
-                  <div className="inline-flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 sm:inline-flex">
                     {[...(nextEvent && !nextEvent.title.toLowerCase().includes("présentation") ? [nextEvent] : []), ...otherTuesdayEvents].map((ev) => (
-                      <div key={ev.id} className="inline-flex items-center gap-3 bg-white/10 rounded-lg px-3 py-2 w-fit">
-                        <span className="text-white/70 text-xs font-medium whitespace-nowrap">
+                      <div key={ev.id} className="flex flex-col gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:rounded-lg sm:px-3 sm:py-2 sm:w-fit">
+                        <span className="text-white/60 text-xs font-normal sm:font-medium sm:text-white/70 whitespace-nowrap">
                           {new Date(ev.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
                           {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
                         </span>
-                        <span className="text-white/90 text-sm font-medium">{ev.title}</span>
+                        <span className="text-white/90 text-sm font-semibold sm:font-medium">{ev.title}</span>
                         <AtelierParticipeButton eventId={ev.id} initialRegistered={atelierRegisteredSet.has(ev.id)} />
                       </div>
                     ))}
