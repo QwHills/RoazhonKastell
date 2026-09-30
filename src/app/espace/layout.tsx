@@ -50,7 +50,7 @@ export default async function EspaceLayout({
     <div className="min-h-screen bg-zinc-50">
       <Sidebar profile={profile} />
       <div className="lg:pl-64">
-        <main className="p-6 lg:p-8">{children}</main>
+        <main className="p-6 pt-16 lg:p-8">{children}</main>
       </div>
     </div>
   );
