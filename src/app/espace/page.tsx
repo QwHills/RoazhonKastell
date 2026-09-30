@@ -73,33 +73,38 @@ export default async function EspacePage() {
           .from("events")
           .select("id, title, starts_at, ends_at")
           .eq("status", "publie")
-          .eq("category", "mardi-coworking")
           .gte("starts_at", tuesdayStart.toISOString())
           .lte("starts_at", tuesdayEnd.toISOString())
           .order("starts_at", { ascending: true })
-          .limit(1)
       : Promise.resolve({ data: [] }),
   ]);
 
   const pendingCount = pendingResult.count || 0;
 
-  let nextEvent: { id: string; title: string; starts_at: string; ends_at: string | null } | null = null;
+  type EventInfo = { id: string; title: string; starts_at: string; ends_at: string | null };
+  let nextEvent: EventInfo | null = null;
+  let otherTuesdayEvents: EventInfo[] = [];
   let nextTuesdayFallback = false;
 
   if (isPartner) {
     nextEvent = nextEvents?.[0] || null;
   } else {
-    const tuesdayEvent = tuesdayEvents?.[0] || null;
-    if (tuesdayEvent) {
-      nextEvent = tuesdayEvent;
+    const allTuesday = (tuesdayEvents || []) as EventInfo[];
+    const mainEvent = allTuesday.find((e) => e.title.toLowerCase().includes("présentation")) || null;
+    if (mainEvent) {
+      nextEvent = mainEvent;
+      otherTuesdayEvents = allTuesday.filter((e) => e.id !== mainEvent.id);
+    } else if (allTuesday.length > 0) {
+      nextEvent = allTuesday[0];
+      otherTuesdayEvents = allTuesday.slice(1);
     } else {
-      const admin = getAdminClient();
+      const adminClient = getAdminClient();
       const y = nextTuesday.getFullYear();
       const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
       const d = String(nextTuesday.getDate()).padStart(2, "0");
       const dateStr = `${y}-${m}-${d}`;
       const slug = `mardi-coworking-${dateStr.replace(/-/g, "")}`;
-      const { data: created, error: createErr } = await admin
+      const { data: created } = await adminClient
         .from("events")
         .upsert({
           title: "Présentation des biens & échanges",
@@ -217,6 +222,28 @@ export default async function EspacePage() {
           )}
         </div>
       </div>
+
+      {/* Other Tuesday events */}
+      {otherTuesdayEvents.length > 0 && (
+        <div className={`grid gap-3 mb-8 ${otherTuesdayEvents.length >= 2 ? "md:grid-cols-2" : ""}`}>
+          {otherTuesdayEvents.map((ev) => {
+            const start = new Date(ev.starts_at);
+            const end = ev.ends_at ? new Date(ev.ends_at) : null;
+            return (
+              <div key={ev.id} className="bg-white border border-zinc-200 rounded-2xl p-5">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
+                  {end && ` – ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
+                </div>
+                <h3 className="font-semibold text-zinc-900 text-sm">{ev.title}</h3>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Dashboard cards — adherents */}
       {hasCards && (

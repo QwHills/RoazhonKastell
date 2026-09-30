@@ -43,6 +43,7 @@ function getNavGroups(profile: Profile): NavGroup[] {
         { label: "Mes biens", href: "/espace/biens", icon: <BuildingIcon /> },
         { label: "Recherches", href: "/espace/recherches", icon: <SearchIcon /> },
         { label: "Mes actions", href: "/espace/actions", icon: <CheckCircleIcon /> },
+        { label: "Agenda", href: "/espace/agenda", icon: <CalendarIcon /> },
         { label: "Boîte à idées", href: "/espace/idees", icon: <LightbulbIcon /> },
         { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
       ],
@@ -51,6 +52,7 @@ function getNavGroups(profile: Profile): NavGroup[] {
     groups.push({
       label: "Réseau",
       items: [
+        { label: "Agenda", href: "/espace/agenda", icon: <CalendarIcon /> },
         { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
       ],
     });
