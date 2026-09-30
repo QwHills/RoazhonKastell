@@ -2,6 +2,7 @@ import { getCurrentUser, canViewReunions } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AgendaParticipeButton from "./AgendaParticipeButton";
+import AgendaReunionButton from "./AgendaReunionButton";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -146,17 +147,35 @@ export default async function AgendaPage() {
 
   allEvents.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
 
-  const realEventIds = allEvents.filter((e) => !e.isRecurring).map((e) => e.id);
-  const { data: registrations } = realEventIds.length > 0
-    ? await supabase
-        .from("event_registrations")
-        .select("event_id")
-        .eq("user_id", profile.id)
-        .eq("status", "inscrit")
-        .in("event_id", realEventIds)
-    : { data: [] };
+  const realEventIds = allEvents
+    .filter((e) => !e.isRecurring && !e.isMeeting)
+    .map((e) => e.id);
+  const meetingIds = allEvents
+    .filter((e) => e.isMeeting)
+    .map((e) => e.id.replace("meeting-", ""));
+
+  const [{ data: registrations }, { data: meetingAttendees }] = await Promise.all([
+    realEventIds.length > 0
+      ? supabase
+          .from("event_registrations")
+          .select("event_id")
+          .eq("user_id", profile.id)
+          .eq("status", "inscrit")
+          .in("event_id", realEventIds)
+      : Promise.resolve({ data: [] as { event_id: string }[] }),
+    meetingIds.length > 0
+      ? supabase
+          .from("meeting_attendees")
+          .select("meeting_id, response")
+          .eq("user_id", profile.id)
+          .in("meeting_id", meetingIds)
+      : Promise.resolve({ data: [] as { meeting_id: string; response: string }[] }),
+  ]);
 
   const registeredSet = new Set((registrations || []).map((r) => r.event_id));
+  const meetingResponseMap = new Map(
+    (meetingAttendees || []).map((a) => [`meeting-${a.meeting_id}`, a.response])
+  );
 
   const grouped = new Map<string, AgendaEvent[]>();
   for (const event of allEvents) {
@@ -225,15 +244,21 @@ export default async function AgendaPage() {
                             />
                           )}
                           {isMeeting && meetingId && (
-                            <Link
-                              href={`/espace/reunions/${meetingId}`}
-                              className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700"
-                            >
-                              Voir la réunion
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                              </svg>
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-3 mt-3">
+                              <AgendaReunionButton
+                                meetingId={meetingId}
+                                initialResponse={meetingResponseMap.get(event.id) || null}
+                              />
+                              <Link
+                                href={`/espace/reunions/${meetingId}`}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-emerald-600 text-xs font-semibold hover:text-emerald-700"
+                              >
+                                Voir la réunion
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                              </Link>
+                            </div>
                           )}
                         </div>
                         {isMardi && (
