@@ -77,6 +77,10 @@ export default function MembresClient({
     inactif: members.filter((m) => m.member_status === "inactif").length,
   };
 
+  const actifMembers = members.filter((m) => m.member_status === "actif");
+  const adherentCount = actifMembers.filter((m) => m.roles.includes("adherent") && !m.roles.includes("partenaire")).length;
+  const partenaireCount = actifMembers.filter((m) => m.roles.includes("partenaire")).length;
+
   const totalCotisations = members
     .filter((m) => m.member_status === "actif" && m.cotisation_mensuelle)
     .reduce((sum, m) => sum + (m.cotisation_mensuelle || 0), 0);
@@ -155,7 +159,7 @@ export default function MembresClient({
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Gestion des membres</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            {counts.actif} actif{counts.actif > 1 ? "s" : ""} · {counts.en_attente} en attente · {counts.inactif} inactif{counts.inactif > 1 ? "s" : ""}
+            {counts.actif} actif{counts.actif > 1 ? "s" : ""} ({adherentCount} adhérent{adherentCount > 1 ? "s" : ""}, {partenaireCount} partenaire{partenaireCount > 1 ? "s" : ""}) · {counts.en_attente} en attente · {counts.inactif} inactif{counts.inactif > 1 ? "s" : ""}
           </p>
           {totalCotisations > 0 && (
             <p className="text-sm font-medium text-emerald-600 mt-1">
