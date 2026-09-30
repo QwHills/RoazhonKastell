@@ -58,7 +58,7 @@ export default function AtelierParticipeButton({
     <button
       onClick={handleRegister}
       disabled={loading}
-      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white/90 rounded-full text-[11px] font-medium transition-colors disabled:opacity-50"
+      className="self-start inline-flex items-center gap-1 px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white/90 rounded-full text-[11px] font-medium transition-colors disabled:opacity-50"
     >
       {loading ? "…" : "Je participe"}
     </button>
