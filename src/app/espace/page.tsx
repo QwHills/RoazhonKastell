@@ -5,6 +5,7 @@ import type { Profile } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
 import ParticipeButton from "./ParticipeButton";
+import AtelierParticipeButton from "./AtelierParticipeButton";
 import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction } from "@/lib/dashboard-cards";
 import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard } from "./DashboardCards";
 
@@ -143,15 +144,22 @@ export default async function EspacePage() {
   }
 
   let isRegistered = false;
-  if (nextEvent) {
-    const { data: reg } = await supabase
+  const atelierRegisteredSet = new Set<string>();
+  const allEventIds = [
+    ...(nextEvent ? [nextEvent.id] : []),
+    ...otherTuesdayEvents.map((e) => e.id),
+  ];
+  if (allEventIds.length > 0) {
+    const { data: regs } = await supabase
       .from("event_registrations")
-      .select("id")
-      .eq("event_id", nextEvent.id)
+      .select("event_id")
+      .in("event_id", allEventIds)
       .eq("user_id", profile.id)
-      .eq("status", "inscrit")
-      .maybeSingle();
-    isRegistered = !!reg;
+      .eq("status", "inscrit");
+    for (const r of regs || []) {
+      if (nextEvent && r.event_id === nextEvent.id) isRegistered = true;
+      else atelierRegisteredSet.add(r.event_id);
+    }
   }
 
   const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction] = await Promise.all([
@@ -232,6 +240,7 @@ export default async function EspacePage() {
                           {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
                         </span>
                         <span className="text-white/90 text-sm font-medium">{ev.title}</span>
+                        <AtelierParticipeButton eventId={ev.id} initialRegistered={atelierRegisteredSet.has(ev.id)} />
                       </div>
                     ))}
                   </div>
