@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser, canManageEvents } from "@/lib/supabase/auth";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+async function distributeToParticipants(supabase: SupabaseClient, actionId: string, eventId: string) {
+  const { data: registrations } = await supabase
+    .from("event_registrations")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("status", "inscrit");
+
+  if (!registrations || registrations.length === 0) return;
+
+  const rows = registrations.map((r) => ({
+    action_id: actionId,
+    user_id: r.user_id,
+    status: "a_faire",
+  }));
+
+  await supabase
+    .from("user_action_tracking")
+    .upsert(rows, { onConflict: "action_id,user_id" });
+}
 
 export async function GET(req: NextRequest) {
   const profile = await getCurrentUser();
@@ -65,6 +86,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (validate && data) {
+    await distributeToParticipants(supabase, data.id, eventId);
+  }
+
   return NextResponse.json(data);
 }
 
@@ -119,5 +145,10 @@ export async function PUT(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (validate && data) {
+    await distributeToParticipants(supabase, data.id, data.event_id);
+  }
+
   return NextResponse.json(data);
 }
