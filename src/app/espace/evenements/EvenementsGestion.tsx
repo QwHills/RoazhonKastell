@@ -308,10 +308,11 @@ export default function EvenementsGestion({
 
     const supabase = createClient();
     function parisToISO(date: string, time: string): string {
-      const asUTC = new Date(`${date}T${time}:00Z`);
-      const parisStr = asUTC.toLocaleString("en-US", { timeZone: "Europe/Paris" });
-      const offsetMs = new Date(parisStr).getTime() - asUTC.getTime();
-      return new Date(asUTC.getTime() - offsetMs).toISOString();
+      const fakeUTC = new Date(`${date}T${time}:00Z`);
+      const parisStr = fakeUTC.toLocaleString("en-US", { timeZone: "Europe/Paris" });
+      const utcStr = fakeUTC.toLocaleString("en-US", { timeZone: "UTC" });
+      const offsetMs = new Date(parisStr).getTime() - new Date(utcStr).getTime();
+      return new Date(fakeUTC.getTime() - offsetMs).toISOString();
     }
     const startsAt = parisToISO(form.starts_at, form.starts_time);
     const endsAt = parisToISO(form.starts_at, form.ends_time);
