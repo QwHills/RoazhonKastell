@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/auth";
 import Sidebar from "@/components/espace/Sidebar";
-import EspaceHeader from "@/components/espace/EspaceHeader";
 
 export const metadata = {
   title: "Mon espace — Roazhon Kastell",
@@ -51,7 +50,6 @@ export default async function EspaceLayout({
     <div className="min-h-screen bg-zinc-50">
       <Sidebar profile={profile} />
       <div className="lg:pl-64">
-        <EspaceHeader profile={profile} />
         <main className="p-6 lg:p-8">{children}</main>
       </div>
     </div>
