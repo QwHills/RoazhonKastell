@@ -81,7 +81,7 @@ export async function GET(request: Request) {
         first_name: account.firstName,
         last_name: account.lastName,
         roles: account.roles,
-        member_status: "actif",
+        member_status: "test",
       }),
     });
   } else {
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
         first_name: account.firstName,
         last_name: account.lastName,
         roles: account.roles,
-        member_status: "actif",
+        member_status: "test",
         city: "Rennes",
       }),
     });
