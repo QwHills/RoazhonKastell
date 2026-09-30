@@ -219,7 +219,6 @@ export default function EvenementsGestion({
       resource_title: "",
     });
     setActionEditId(null);
-    setAiSuggestions([]);
   }
 
   async function saveAction(validate: boolean) {
