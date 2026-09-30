@@ -258,12 +258,49 @@ export interface FinancialEntry {
   updated_at: string;
 }
 
+export type MeetingStatus = "brouillon" | "planifie" | "en_cours" | "termine" | "archive";
+export type SubjectStatus = "propose" | "a_traiter" | "en_cours" | "traite" | "reporte" | "mis_de_cote";
+export type AttendeeResponse = "present" | "absent" | "en_attente";
+export type TodoStatus = "a_faire" | "en_cours" | "bloquee" | "terminee";
+
 export interface Meeting {
   id: string;
   title: string;
   meeting_date: string;
   summary: string | null;
+  agenda: string | null;
+  location: string | null;
+  video_link: string | null;
+  referent_id: string | null;
+  starts_time: string | null;
+  ends_time: string | null;
+  status: MeetingStatus;
+  raw_notes: string | null;
   created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingSubject {
+  id: string;
+  meeting_id: string | null;
+  proposed_by: string | null;
+  title: string;
+  description: string | null;
+  referent_id: string | null;
+  duration_minutes: number | null;
+  sort_order: number;
+  status: SubjectStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingAttendee {
+  id: string;
+  meeting_id: string;
+  user_id: string;
+  response: AttendeeResponse;
   created_at: string;
   updated_at: string;
 }
@@ -275,6 +312,10 @@ export interface MeetingTodo {
   assigned_to: string | null;
   due_date: string | null;
   done: boolean;
+  subject_id: string | null;
+  todo_status: TodoStatus;
+  progress_note: string | null;
+  source: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -13,7 +13,7 @@ const TEST_ACCOUNTS: Record<string, { email: string; firstName: string; lastName
     email: "test-admin@roazhonkastell.test",
     firstName: "Julien",
     lastName: "Test-Admin",
-    roles: ["adherent", "gestionnaire_evenements"],
+    roles: ["adherent", "gestionnaire_evenements", "admin", "membre_executif"],
   },
 };
 
