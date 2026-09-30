@@ -104,14 +104,9 @@ export default async function EspacePage() {
     nextEvent = nextEvents?.[0] || null;
   } else {
     const allTuesday = (tuesdayEvents || []) as EventInfo[];
-    const mainEvent = allTuesday.find((e) => e.title.toLowerCase().includes("présentation")) || null;
-    if (mainEvent) {
-      nextEvent = mainEvent;
-      otherTuesdayEvents = allTuesday.filter((e) => e.id !== mainEvent.id);
-    } else if (allTuesday.length > 0) {
-      nextEvent = allTuesday[0];
-      otherTuesdayEvents = allTuesday.slice(1);
-    } else {
+    let mainEvent = allTuesday.find((e) => e.title.toLowerCase().includes("présentation")) || null;
+
+    if (!mainEvent) {
       const adminClient = getAdminClient();
       const y = nextTuesday.getFullYear();
       const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
@@ -135,10 +130,15 @@ export default async function EspacePage() {
         .single();
 
       if (created) {
-        nextEvent = created;
+        mainEvent = created;
       } else {
         nextTuesdayFallback = true;
       }
+    }
+
+    if (mainEvent) {
+      nextEvent = mainEvent;
+      otherTuesdayEvents = allTuesday.filter((e) => e.id !== mainEvent!.id);
     }
   }
 
