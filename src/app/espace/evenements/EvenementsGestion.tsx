@@ -203,7 +203,8 @@ export default function EvenementsGestion({
       if (err.error === "SERVICE_NOT_CONFIGURED") {
         setAiError("La génération IA n’est pas configurée. Saisissez l’action manuellement.");
       } else {
-        setAiError("Erreur lors de la génération. Réessayez ou saisissez manuellement.");
+        const detail = err.details ? ` (${err.details.substring(0, 100)})` : "";
+        setAiError(`Erreur lors de la génération${detail}. Réessayez ou saisissez manuellement.`);
       }
     }
     setGeneratingAi(false);

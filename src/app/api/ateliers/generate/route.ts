@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         messages: [
           {
@@ -57,7 +57,9 @@ Réponds uniquement en JSON, sans explication :
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: "Erreur du service IA" }, { status: 502 });
+      const errBody = await response.text();
+      console.error("Anthropic API error:", response.status, errBody);
+      return NextResponse.json({ error: "Erreur du service IA", details: errBody }, { status: 502 });
     }
 
     const result = await response.json();
