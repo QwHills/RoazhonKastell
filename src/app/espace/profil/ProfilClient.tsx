@@ -39,34 +39,18 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
     setPhotoUploading(true);
     setPhotoMessage("");
 
-    const supabase = createClient();
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${initial.id}/avatar.${ext}`;
+    const body = new FormData();
+    body.append("file", file);
 
-    const { error: uploadError } = await supabase.storage
-      .from("photos")
-      .upload(path, file, { upsert: true });
-
-    if (uploadError) {
-      setPhotoUploading(false);
-      setPhotoMessage("Erreur lors de l'envoi de la photo.");
-      return;
-    }
-
-    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
-    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ photo_url: urlData.publicUrl })
-      .eq("id", initial.id);
+    const res = await fetch("/api/profile/photo", { method: "POST", body });
+    const data = await res.json();
 
     setPhotoUploading(false);
 
-    if (updateError) {
-      setPhotoMessage("Photo envoyée mais erreur lors de la mise à jour du profil.");
+    if (!res.ok) {
+      setPhotoMessage(data.error || "Erreur lors de l'envoi de la photo.");
     } else {
-      setPhotoUrl(publicUrl);
+      setPhotoUrl(`${data.url}?t=${Date.now()}`);
       setPhotoMessage("Photo mise à jour !");
       setTimeout(() => setPhotoMessage(""), 3000);
     }
@@ -76,11 +60,7 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
     setPhotoUploading(true);
     setPhotoMessage("");
 
-    const supabase = createClient();
-    await supabase
-      .from("profiles")
-      .update({ photo_url: null })
-      .eq("id", initial.id);
+    await fetch("/api/profile/photo", { method: "DELETE" });
 
     setPhotoUrl("");
     setPhotoUploading(false);
