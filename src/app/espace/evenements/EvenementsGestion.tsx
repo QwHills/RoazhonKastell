@@ -93,6 +93,7 @@ function formatDate(iso: string): string {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/Paris",
   });
 }
 
@@ -100,7 +101,15 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Paris",
   });
+}
+
+function toParisDateParts(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  return { date, time };
 }
 
 type TabType = "mardis" | "evenements";
@@ -259,9 +268,11 @@ export default function EvenementsGestion({
   }
 
   function openEdit(event: EventItem) {
-    const startDate = event.starts_at.slice(0, 10);
-    const startTime = event.starts_at.slice(11, 16) || "19:00";
-    const endTime = event.ends_at ? event.ends_at.slice(11, 16) : "21:00";
+    const startParts = toParisDateParts(event.starts_at);
+    const endParts = event.ends_at ? toParisDateParts(event.ends_at) : null;
+    const startDate = startParts.date;
+    const startTime = startParts.time;
+    const endTime = endParts?.time || "21:00";
 
     setEditingId(event.id);
     setForm({
@@ -296,8 +307,14 @@ export default function EvenementsGestion({
     setMessage(null);
 
     const supabase = createClient();
-    const startsAt = `${form.starts_at}T${form.starts_time}:00`;
-    const endsAt = `${form.starts_at}T${form.ends_time}:00`;
+    function parisToISO(date: string, time: string): string {
+      const asUTC = new Date(`${date}T${time}:00Z`);
+      const parisStr = asUTC.toLocaleString("en-US", { timeZone: "Europe/Paris" });
+      const offsetMs = new Date(parisStr).getTime() - asUTC.getTime();
+      return new Date(asUTC.getTime() - offsetMs).toISOString();
+    }
+    const startsAt = parisToISO(form.starts_at, form.starts_time);
+    const endsAt = parisToISO(form.starts_at, form.ends_time);
 
     const payload = {
       title: form.title,

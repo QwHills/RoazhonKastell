@@ -125,7 +125,7 @@ export default async function MesActionsPage() {
                 <div>
                   <h3 className="font-semibold text-zinc-900">{a.actionTitle}</h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Après « {a.eventTitle} » · {new Date(a.eventDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+                    Après « {a.eventTitle} » · {new Date(a.eventDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}
                   </p>
                 </div>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -180,7 +180,7 @@ export default async function MesActionsPage() {
                     <div>
                       <h4 className="font-medium text-sm text-zinc-900">{ab.title}</h4>
                       <p className="text-xs text-zinc-400">
-                        {ab.eventTitle} · {new Date(ab.eventDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+                        {ab.eventTitle} · {new Date(ab.eventDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}
                       </p>
                     </div>
                     <span className="text-sm font-bold text-zinc-700">{rate}%</span>

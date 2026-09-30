@@ -21,6 +21,13 @@ export default async function EspacePage() {
   const isPartner = hasRole(profile, "partenaire");
   const now = new Date().toISOString();
 
+  function parisToISO(dateStr: string, time: string): string {
+    const asUTC = new Date(`${dateStr}T${time}:00Z`);
+    const parisStr = asUTC.toLocaleString("en-US", { timeZone: "Europe/Paris" });
+    const offsetMs = new Date(parisStr).getTime() - asUTC.getTime();
+    return new Date(asUTC.getTime() - offsetMs).toISOString();
+  }
+
   function getNextTuesday(): Date {
     const parisNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
     const today = new Date(parisNow);
@@ -111,8 +118,8 @@ export default async function EspacePage() {
           slug,
           category: "mardi-coworking",
           location: "Roazhon Kastell, Rennes",
-          starts_at: `${dateStr}T09:30:00`,
-          ends_at: `${dateStr}T10:30:00`,
+          starts_at: parisToISO(dateStr, "09:30"),
+          ends_at: parisToISO(dateStr, "10:30"),
           status: "publie",
           visibility: "public",
           created_by: profile.id,
@@ -177,10 +184,10 @@ export default async function EspacePage() {
             <>
               <h2 className="text-2xl font-bold mb-1">{nextEvent.title}</h2>
               <p className="text-white/50 text-sm">
-                {new Date(nextEvent.starts_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                {new Date(nextEvent.starts_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" })}
                 {" · "}
-                {new Date(nextEvent.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                {nextEvent.ends_at && ` – ${new Date(nextEvent.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                {new Date(nextEvent.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
+                {nextEvent.ends_at && ` – ${new Date(nextEvent.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
               </p>
               <ParticipeButton eventId={nextEvent.id} initialRegistered={isRegistered} showBiens={!isPartner} />
             </>
