@@ -159,6 +159,12 @@ export default function MeetingDetailClient({
   // Compte rendu
   const [generatingCR, setGeneratingCR] = useState(false);
 
+  // Delete audio
+  const [deletingAudio, setDeletingAudio] = useState(false);
+
+  // AI clean notes
+  const [cleaningSubjectId, setCleaningSubjectId] = useState<string | null>(null);
+
   const isLive = meeting.status === "en_cours";
   const isFinished = meeting.status === "termine" || meeting.status === "archive";
 
@@ -402,6 +408,71 @@ export default function MeetingDetailClient({
     setUploadingAudio(false);
   }
 
+  async function deleteAudio() {
+    if (!confirm("Supprimer l'enregistrement audio ?")) return;
+    setDeletingAudio(true);
+    const res = await fetch("/api/reunions/audio", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meeting_id: meeting.id }),
+    });
+    if (res.ok) {
+      setAudioUrl(null);
+      setAudioBlob(null);
+      flash("success", "Enregistrement supprimé.");
+    } else {
+      flash("error", "Erreur lors de la suppression.");
+    }
+    setDeletingAudio(false);
+  }
+
+  function discardRecording() {
+    setAudioBlob(null);
+  }
+
+  async function cleanNotes(subjectId: string) {
+    const rawNotes = subjectNotes[subjectId];
+    if (!rawNotes?.trim()) return;
+    const subject = subjects.find((s) => s.id === subjectId);
+    setCleaningSubjectId(subjectId);
+
+    const res = await fetch("/api/reunions/clean-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject_title: subject?.title, raw_notes: rawNotes }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setSubjectNotes((prev) => ({ ...prev, [subjectId]: data.clean_notes }));
+      await saveSubjectNotes(subjectId);
+
+      if (data.actions?.length > 0) {
+        const supabase = createClient();
+        for (const actionTitle of data.actions) {
+          const { data: todo, error } = await supabase
+            .from("meeting_todos")
+            .insert({
+              title: actionTitle,
+              meeting_id: meeting.id,
+              todo_status: "a_faire",
+            })
+            .select("*, profiles!meeting_todos_assigned_to_fkey(first_name, last_name)")
+            .single();
+          if (!error && todo) {
+            setTodos((prev) => [...prev, todo]);
+          }
+        }
+        flash("success", `Notes remises au propre + ${data.actions.length} action${data.actions.length > 1 ? "s" : ""} ajoutée${data.actions.length > 1 ? "s" : ""} !`);
+      } else {
+        flash("success", "Notes remises au propre !");
+      }
+    } else {
+      flash("error", "Erreur lors du nettoyage des notes.");
+    }
+    setCleaningSubjectId(null);
+  }
+
   // ---- Dictation (Web Speech API) ----
 
   function startDictation(subjectId: string) {
@@ -605,10 +676,23 @@ export default function MeetingDetailClient({
                 className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
                 {uploadingAudio ? "Envoi…" : "Sauvegarder l'enregistrement"}
               </button>
+              <button onClick={discardRecording}
+                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200">
+                Supprimer
+              </button>
             </>
           )}
           {audioUrl && !audioBlob && (
-            <audio controls src={audioUrl} className="h-8" />
+            <>
+              <audio controls src={audioUrl} className="h-8 flex-1" />
+              <button onClick={deleteAudio} disabled={deletingAudio}
+                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-200 disabled:opacity-50 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                {deletingAudio ? "…" : "Supprimer"}
+              </button>
+            </>
           )}
         </div>
       )}
@@ -727,27 +811,44 @@ export default function MeetingDetailClient({
                             <div className="mt-3">
                               <div className="flex items-center justify-between mb-1">
                                 <label className="text-[11px] font-medium text-zinc-500">Notes</label>
-                                {isLive && (
-                                  <button
-                                    onClick={() => {
-                                      if (dictating && dictationTargetRef.current === s.id) {
-                                        stopDictation();
-                                      } else {
-                                        if (dictating) stopDictation();
-                                        startDictation(s.id);
-                                      }
-                                    }}
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${
-                                      dictating && dictationTargetRef.current === s.id
-                                        ? "bg-red-100 text-red-700"
-                                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                                    }`}>
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                                    </svg>
-                                    {dictating && dictationTargetRef.current === s.id ? "Arrêter" : "Dicter"}
-                                  </button>
-                                )}
+                                <div className="flex items-center gap-1">
+                                  {subjectNotes[s.id]?.trim() && (
+                                    <button
+                                      onClick={() => cleanNotes(s.id)}
+                                      disabled={cleaningSubjectId === s.id}
+                                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${
+                                        cleaningSubjectId === s.id
+                                          ? "bg-violet-100 text-violet-700 animate-pulse"
+                                          : "bg-violet-50 text-violet-600 hover:bg-violet-100"
+                                      }`}>
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                      </svg>
+                                      {cleaningSubjectId === s.id ? "IA en cours…" : "Remettre au propre"}
+                                    </button>
+                                  )}
+                                  {isLive && (
+                                    <button
+                                      onClick={() => {
+                                        if (dictating && dictationTargetRef.current === s.id) {
+                                          stopDictation();
+                                        } else {
+                                          if (dictating) stopDictation();
+                                          startDictation(s.id);
+                                        }
+                                      }}
+                                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${
+                                        dictating && dictationTargetRef.current === s.id
+                                          ? "bg-red-100 text-red-700"
+                                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                                      }`}>
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                                      </svg>
+                                      {dictating && dictationTargetRef.current === s.id ? "Arrêter" : "Dicter"}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <textarea
                                 value={subjectNotes[s.id] || ""}
@@ -881,7 +982,13 @@ export default function MeetingDetailClient({
           {/* Audio */}
           {audioUrl && (
             <div className="bg-white border border-zinc-200 rounded-2xl p-5">
-              <h3 className="font-semibold text-zinc-900 text-sm mb-3">Enregistrement</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-zinc-900 text-sm">Enregistrement</h3>
+                <button onClick={deleteAudio} disabled={deletingAudio}
+                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50">
+                  Supprimer
+                </button>
+              </div>
               <audio controls src={audioUrl} className="w-full" />
             </div>
           )}
