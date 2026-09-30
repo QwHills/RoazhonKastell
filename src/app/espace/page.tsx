@@ -1,4 +1,4 @@
-import { getCurrentUser, isAdmin, canManageMembers, hasRole } from "@/lib/supabase/auth";
+import { getCurrentUser, isAdmin, canManageMembers, hasRole, canViewReunions } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Profile } from "@/lib/supabase/types";
@@ -8,6 +8,7 @@ import ParticipeButton from "./ParticipeButton";
 import AtelierParticipeButton from "./AtelierParticipeButton";
 import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction } from "@/lib/dashboard-cards";
 import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard } from "./DashboardCards";
+import ReunionDashboardCard from "./ReunionDashboardCard";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function EspacePage() {
   const admin = isAdmin(profile);
   const manager = canManageMembers(profile);
   const isPartner = hasRole(profile, "partenaire");
+  const isExec = canViewReunions(profile);
   const now = new Date().toISOString();
 
   function parisToISO(dateStr: string, time: string): string {
@@ -95,6 +97,51 @@ export default async function EspacePage() {
   ]);
 
   const pendingCount = pendingResult.count || 0;
+
+  // Next exec meeting
+  let nextMeeting: { id: string; title: string; meeting_date: string; starts_time: string | null; ends_time: string | null; location: string | null } | null = null;
+  let meetingSubjectCount = 0;
+  let meetingTotalMinutes = 0;
+  let myMeetingResponse: string | null = null;
+  let meetingPresentCount = 0;
+  let meetingAbsentCount = 0;
+  let meetingWaitingCount = 0;
+
+  if (isExec) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const { data: meetings } = await supabase
+      .from("meetings")
+      .select("id, title, meeting_date, starts_time, ends_time, location")
+      .gte("meeting_date", todayStr)
+      .not("status", "in", '("archive","termine")')
+      .order("meeting_date", { ascending: true })
+      .limit(1);
+
+    nextMeeting = meetings?.[0] || null;
+
+    if (nextMeeting) {
+      const [{ data: subs }, { data: atts }] = await Promise.all([
+        supabase
+          .from("meeting_subjects")
+          .select("duration_minutes")
+          .eq("meeting_id", nextMeeting.id),
+        supabase
+          .from("meeting_attendees")
+          .select("user_id, response")
+          .eq("meeting_id", nextMeeting.id),
+      ]);
+
+      meetingSubjectCount = subs?.length || 0;
+      meetingTotalMinutes = (subs || []).reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+
+      for (const a of atts || []) {
+        if (a.user_id === profile.id) myMeetingResponse = a.response;
+        if (a.response === "present") meetingPresentCount++;
+        else if (a.response === "absent") meetingAbsentCount++;
+        else meetingWaitingCount++;
+      }
+    }
+  }
 
   type EventInfo = { id: string; title: string; starts_at: string; ends_at: string | null };
   let nextEvent: EventInfo | null = null;
@@ -263,6 +310,19 @@ export default async function EspacePage() {
           )}
         </div>
       </div>
+
+      {/* Next exec meeting card */}
+      {isExec && nextMeeting && (
+        <ReunionDashboardCard
+          meeting={nextMeeting}
+          subjectCount={meetingSubjectCount}
+          totalMinutes={meetingTotalMinutes}
+          initialResponse={myMeetingResponse}
+          presentCount={meetingPresentCount}
+          absentCount={meetingAbsentCount}
+          waitingCount={meetingWaitingCount}
+        />
+      )}
 
       {/* Dashboard cards — adherents */}
       {hasCards && (
