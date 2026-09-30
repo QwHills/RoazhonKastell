@@ -1,9 +1,25 @@
 import { getCurrentUser } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+function getUpcomingTuesdays(count: number): Date[] {
+  const parisNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const today = new Date(parisNow);
+  today.setHours(0, 0, 0, 0);
+  const day = today.getDay();
+  const diff = day <= 2 ? 2 - day : 9 - day;
+  const firstTuesday = new Date(today);
+  firstTuesday.setDate(today.getDate() + (diff === 0 ? 0 : diff));
+  const tuesdays: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = new Date(firstTuesday);
+    t.setDate(firstTuesday.getDate() + i * 7);
+    tuesdays.push(t);
+  }
+  return tuesdays;
+}
 
 export default async function AgendaPage() {
   const profile = await getCurrentUser();
@@ -18,10 +34,70 @@ export default async function AgendaPage() {
     .eq("status", "publie")
     .gte("starts_at", now)
     .order("starts_at", { ascending: true })
-    .limit(20);
+    .limit(50);
 
-  const grouped = new Map<string, typeof events>();
-  for (const event of events || []) {
+  const tuesdays = getUpcomingTuesdays(12);
+
+  type AgendaEvent = {
+    id: string;
+    title: string;
+    starts_at: string;
+    ends_at: string | null;
+    location: string | null;
+    category: string | null;
+    isRecurring?: boolean;
+  };
+
+  const allEvents: AgendaEvent[] = (events || []).map((e) => ({
+    id: e.id,
+    title: e.title,
+    starts_at: e.starts_at,
+    ends_at: e.ends_at,
+    location: e.location,
+    category: e.category,
+  }));
+
+  for (const tuesday of tuesdays) {
+    const tDateStr = tuesday.toLocaleDateString("en-CA");
+    const hasPresentation = allEvents.some((e) => {
+      const eDate = new Date(e.starts_at).toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+      return eDate === tDateStr && e.title.toLowerCase().includes("présentation");
+    });
+    if (!hasPresentation) {
+      const p = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Paris",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false,
+      });
+      const fakeStart = new Date(`${tDateStr}T09:30:00Z`);
+      const partsS = p.formatToParts(fakeStart);
+      const gS = (t: string) => partsS.find((x) => x.type === t)!.value;
+      const offsetStart = new Date(`${gS("year")}-${gS("month")}-${gS("day")}T${gS("hour")}:${gS("minute")}:${gS("second")}Z`).getTime() - fakeStart.getTime();
+      const startsAt = new Date(fakeStart.getTime() - offsetStart).toISOString();
+
+      const fakeEnd = new Date(`${tDateStr}T10:30:00Z`);
+      const partsE = p.formatToParts(fakeEnd);
+      const gE = (t: string) => partsE.find((x) => x.type === t)!.value;
+      const offsetEnd = new Date(`${gE("year")}-${gE("month")}-${gE("day")}T${gE("hour")}:${gE("minute")}:${gE("second")}Z`).getTime() - fakeEnd.getTime();
+      const endsAt = new Date(fakeEnd.getTime() - offsetEnd).toISOString();
+
+      allEvents.push({
+        id: `recurring-${tDateStr}`,
+        title: "Présentation des biens & échanges",
+        starts_at: startsAt,
+        ends_at: endsAt,
+        location: "Roazhon Kastell, Rennes",
+        category: "mardi-coworking",
+        isRecurring: true,
+      });
+    }
+  }
+
+  allEvents.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+
+  const grouped = new Map<string, AgendaEvent[]>();
+  for (const event of allEvents) {
     const date = new Date(event.starts_at).toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
@@ -50,7 +126,7 @@ export default async function AgendaPage() {
                 {date}
               </h2>
               <div className="space-y-3">
-                {dayEvents!.map((event) => {
+                {dayEvents.map((event) => {
                   const start = new Date(event.starts_at);
                   const end = event.ends_at ? new Date(event.ends_at) : null;
                   const timeStr = `${start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}${end ? ` – ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}` : ""}`;
