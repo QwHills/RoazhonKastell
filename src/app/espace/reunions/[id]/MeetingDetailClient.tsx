@@ -152,7 +152,8 @@ export default function MeetingDetailClient({
 
   // Dictation (Web Speech API)
   const [dictating, setDictating] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const dictationTargetRef = useRef<string | null>(null);
 
   // Compte rendu
@@ -404,8 +405,9 @@ export default function MeetingDetailClient({
   // ---- Dictation (Web Speech API) ----
 
   function startDictation(subjectId: string) {
-    const SpeechRecognition = (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition
-      || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       flash("error", "La dictée vocale n'est pas supportée par ce navigateur.");
       return;
@@ -416,7 +418,8 @@ export default function MeetingDetailClient({
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       let finalTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
