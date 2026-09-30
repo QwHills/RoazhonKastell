@@ -243,8 +243,9 @@ export default async function EspacePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
                 </Link>
-              </>
-            )}
+              )}
+            </>
+          )}
         </div>
       </div>
 
