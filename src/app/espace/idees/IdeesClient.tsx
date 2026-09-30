@@ -278,6 +278,11 @@ export default function IdeesClient({
                       className="w-full px-4 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
                     />
                     <div className="flex gap-2 flex-wrap">
+                      {responseText[idea.id]?.trim() && (
+                        <button onClick={() => updateStatus(idea.id, idea.status as IdeaStatus)} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200">
+                          Publier la réponse
+                        </button>
+                      )}
                       <button onClick={() => updateStatus(idea.id, "retenue")} className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
                         Retenir
                       </button>
@@ -292,21 +297,49 @@ export default function IdeesClient({
                 )}
 
                 {isAdmin && idea.status === "retenue" && (
-                  <div className="mt-3 pt-3 border-t border-zinc-100 flex gap-2">
-                    <button onClick={() => updateStatus(idea.id, "en_cours")} className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200">
-                      Passer en cours
-                    </button>
-                    <button onClick={() => updateStatus(idea.id, "realisee")} className="px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-medium hover:bg-zinc-200">
-                      Réalisée
-                    </button>
+                  <div className="mt-3 pt-3 border-t border-zinc-100 space-y-3">
+                    <textarea
+                      value={responseText[idea.id] || ""}
+                      onChange={(e) => setResponseText((prev) => ({ ...prev, [idea.id]: e.target.value }))}
+                      rows={2}
+                      placeholder="Réponse à l'auteur (optionnel)…"
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+                    />
+                    <div className="flex gap-2 flex-wrap">
+                      {responseText[idea.id]?.trim() && (
+                        <button onClick={() => updateStatus(idea.id, "retenue")} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200">
+                          Publier la réponse
+                        </button>
+                      )}
+                      <button onClick={() => updateStatus(idea.id, "en_cours")} className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200">
+                        Passer en cours
+                      </button>
+                      <button onClick={() => updateStatus(idea.id, "realisee")} className="px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-medium hover:bg-zinc-200">
+                        Réalisée
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {isAdmin && idea.status === "en_cours" && (
-                  <div className="mt-3 pt-3 border-t border-zinc-100">
-                    <button onClick={() => updateStatus(idea.id, "realisee")} className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
-                      Marquer réalisée
-                    </button>
+                  <div className="mt-3 pt-3 border-t border-zinc-100 space-y-3">
+                    <textarea
+                      value={responseText[idea.id] || ""}
+                      onChange={(e) => setResponseText((prev) => ({ ...prev, [idea.id]: e.target.value }))}
+                      rows={2}
+                      placeholder="Réponse à l'auteur (optionnel)…"
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+                    />
+                    <div className="flex gap-2 flex-wrap">
+                      {responseText[idea.id]?.trim() && (
+                        <button onClick={() => updateStatus(idea.id, "en_cours")} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-200">
+                          Publier la réponse
+                        </button>
+                      )}
+                      <button onClick={() => updateStatus(idea.id, "realisee")} className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-200">
+                        Marquer réalisée
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
