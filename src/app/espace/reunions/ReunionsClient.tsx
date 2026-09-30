@@ -40,6 +40,8 @@ interface SubjectRow {
   proposed_by: string | null;
   title: string;
   description: string | null;
+  duration_minutes?: number | null;
+  sort_order?: number;
   status: string;
   profiles?: { first_name: string; last_name: string } | null;
 }
@@ -117,8 +119,9 @@ export default function ReunionsClient({
   // AI agenda
   const [aiSubjects, setAiSubjects] = useState<{ title: string; description: string; duration_minutes: number }[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [editableAgenda, setEditableAgenda] = useState<{ title: string; description: string; duration_minutes: number }[]>([]);
+  const [editableAgenda, setEditableAgenda] = useState<{ id?: string; title: string; description: string; duration_minutes: number }[]>([]);
   const [showAgendaPreview, setShowAgendaPreview] = useState(false);
+  const [originalSubjectIds, setOriginalSubjectIds] = useState<Set<string>>(new Set());
 
   // Selected proposed subjects for AI
   const [selectedProposedIds, setSelectedProposedIds] = useState<Set<string>>(new Set());
@@ -195,28 +198,64 @@ export default function ReunionsClient({
       flash("success", "Réunion créée !");
     }
 
-    // Save agenda subjects if we have any
-    if (editableAgenda.length > 0 && newMeeting.id) {
+    // Sync agenda subjects
+    if (newMeeting.id) {
       const supabase = createClient();
-      for (let i = 0; i < editableAgenda.length; i++) {
-        const s = editableAgenda[i];
-        await supabase.from("meeting_subjects").insert({
-          meeting_id: newMeeting.id,
-          title: s.title,
-          description: s.description || null,
-          duration_minutes: s.duration_minutes || null,
-          sort_order: i,
-          status: "a_traiter",
-          proposed_by: userId,
-        });
-      }
-      // Move selected proposed subjects to this meeting
-      for (const sid of selectedProposedIds) {
-        await supabase.from("meeting_subjects").update({
-          meeting_id: newMeeting.id,
-          status: "a_traiter",
-          updated_at: new Date().toISOString(),
-        }).eq("id", sid);
+
+      if (mf.id) {
+        const currentIds = new Set(editableAgenda.filter((s) => s.id).map((s) => s.id!));
+        for (const oldId of originalSubjectIds) {
+          if (!currentIds.has(oldId)) {
+            await supabase.from("meeting_subjects").delete().eq("id", oldId);
+          }
+        }
+        for (let i = 0; i < editableAgenda.length; i++) {
+          const s = editableAgenda[i];
+          if (s.id && originalSubjectIds.has(s.id)) {
+            await supabase.from("meeting_subjects").update({
+              title: s.title,
+              description: s.description || null,
+              duration_minutes: s.duration_minutes || null,
+              sort_order: i,
+              updated_at: new Date().toISOString(),
+            }).eq("id", s.id);
+          } else {
+            await supabase.from("meeting_subjects").insert({
+              meeting_id: newMeeting.id,
+              title: s.title,
+              description: s.description || null,
+              duration_minutes: s.duration_minutes || null,
+              sort_order: i,
+              status: "a_traiter",
+              proposed_by: userId,
+            });
+          }
+        }
+        const { data: refreshed } = await supabase
+          .from("meeting_subjects")
+          .select("*, profiles!meeting_subjects_proposed_by_fkey(first_name, last_name)")
+          .order("sort_order", { ascending: true });
+        if (refreshed) setSubjects(refreshed);
+      } else if (editableAgenda.length > 0) {
+        for (let i = 0; i < editableAgenda.length; i++) {
+          const s = editableAgenda[i];
+          await supabase.from("meeting_subjects").insert({
+            meeting_id: newMeeting.id,
+            title: s.title,
+            description: s.description || null,
+            duration_minutes: s.duration_minutes || null,
+            sort_order: i,
+            status: "a_traiter",
+            proposed_by: userId,
+          });
+        }
+        for (const sid of selectedProposedIds) {
+          await supabase.from("meeting_subjects").update({
+            meeting_id: newMeeting.id,
+            status: "a_traiter",
+            updated_at: new Date().toISOString(),
+          }).eq("id", sid);
+        }
       }
     }
 
@@ -253,9 +292,14 @@ export default function ReunionsClient({
     setEditableAgenda([]);
     setShowAgendaPreview(false);
     setSelectedProposedIds(new Set());
+    setOriginalSubjectIds(new Set());
   }
 
   function startEdit(m: MeetingRow) {
+    const meetingSubjects = subjects
+      .filter((s) => s.meeting_id === m.id)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
     setMf({
       id: m.id,
       title: m.title,
@@ -268,6 +312,16 @@ export default function ReunionsClient({
       freeText: "",
       status: m.status,
     });
+    setEditableAgenda(
+      meetingSubjects.map((s) => ({
+        id: s.id,
+        title: s.title,
+        description: s.description || "",
+        duration_minutes: s.duration_minutes || 15,
+      })),
+    );
+    setOriginalSubjectIds(new Set(meetingSubjects.map((s) => s.id)));
+    setShowAgendaPreview(true);
     setShowForm(true);
   }
 
@@ -526,41 +580,49 @@ export default function ReunionsClient({
                 </div>
               </div>
 
-              {!mf.id && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">De quoi souhaitez-vous parler ?</label>
-                    <textarea value={mf.freeText}
-                      onChange={(e) => setMf({ ...mf, freeText: e.target.value })}
-                      rows={4}
-                      placeholder="Écrivez vos idées en vrac, collez un texte existant..."
-                      className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none" />
-                  </div>
+              {/* Ordre du jour */}
+              <div className="border-t border-zinc-100 pt-4 mt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-zinc-700">Ordre du jour</h3>
+                  <button type="button"
+                    onClick={() => { setEditableAgenda([...editableAgenda, { title: "", description: "", duration_minutes: 15 }]); setShowAgendaPreview(true); }}
+                    className="text-xs text-zinc-500 hover:text-zinc-700">+ Ajouter un sujet</button>
+                </div>
 
-                  {openSubjects.length > 0 && (
+                {!showAgendaPreview && !mf.id && (
+                  <>
                     <div>
-                      <p className="text-xs font-medium text-zinc-500 mb-2">Sujets proposés par le bureau</p>
-                      <div className="space-y-1.5">
-                        {openSubjects.map((s) => (
-                          <label key={s.id} className="flex items-start gap-2 cursor-pointer">
-                            <input type="checkbox" className="mt-1 rounded"
-                              checked={selectedProposedIds.has(s.id)}
-                              onChange={(e) => {
-                                const next = new Set(selectedProposedIds);
-                                if (e.target.checked) next.add(s.id); else next.delete(s.id);
-                                setSelectedProposedIds(next);
-                              }} />
-                            <div>
-                              <span className="text-sm font-medium text-zinc-700">{s.title}</span>
-                              {s.description && <p className="text-xs text-zinc-400">{s.description}</p>}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
+                      <label className="block text-xs font-medium text-zinc-500 mb-1">De quoi souhaitez-vous parler ?</label>
+                      <textarea value={mf.freeText}
+                        onChange={(e) => setMf({ ...mf, freeText: e.target.value })}
+                        rows={4}
+                        placeholder="Écrivez vos idées en vrac, collez un texte existant..."
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none" />
                     </div>
-                  )}
 
-                  {!showAgendaPreview && (
+                    {openSubjects.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-zinc-500 mb-2">Sujets proposés par le bureau</p>
+                        <div className="space-y-1.5">
+                          {openSubjects.map((s) => (
+                            <label key={s.id} className="flex items-start gap-2 cursor-pointer">
+                              <input type="checkbox" className="mt-1 rounded"
+                                checked={selectedProposedIds.has(s.id)}
+                                onChange={(e) => {
+                                  const next = new Set(selectedProposedIds);
+                                  if (e.target.checked) next.add(s.id); else next.delete(s.id);
+                                  setSelectedProposedIds(next);
+                                }} />
+                              <div>
+                                <span className="text-sm font-medium text-zinc-700">{s.title}</span>
+                                {s.description && <p className="text-xs text-zinc-400">{s.description}</p>}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={generateAgenda} disabled={aiLoading || (!mf.freeText.trim() && selectedProposedIds.size === 0)}
                         className="px-4 py-2 bg-zinc-100 text-zinc-700 rounded-xl text-sm font-semibold hover:bg-zinc-200 disabled:opacity-40 flex items-center gap-2">
@@ -570,48 +632,45 @@ export default function ReunionsClient({
                         {aiLoading ? "Structuration…" : "Structurer l'ordre du jour"}
                       </button>
                     </div>
-                  )}
+                  </>
+                )}
 
-                  {showAgendaPreview && editableAgenda.length > 0 && (
-                    <div className="border border-zinc-200 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-zinc-700">Ordre du jour proposé</p>
-                        <button type="button" onClick={() => { setEditableAgenda([...editableAgenda, { title: "", description: "", duration_minutes: 15 }]); }}
-                          className="text-xs text-zinc-500 hover:text-zinc-700">+ Ajouter un sujet</button>
-                      </div>
-                      {editableAgenda.map((item, i) => (
-                        <div key={i} className="flex items-start gap-3 bg-zinc-50 rounded-xl p-3">
-                          <span className="w-6 h-6 flex items-center justify-center bg-zinc-900 text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
-                          <div className="flex-1 space-y-1.5">
-                            <input type="text" value={item.title}
-                              onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], title: e.target.value }; setEditableAgenda(a); }}
-                              placeholder="Titre du sujet"
-                              className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-                            <input type="text" value={item.description}
-                              onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], description: e.target.value }; setEditableAgenda(a); }}
-                              placeholder="Description courte"
-                              className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <input type="number" value={item.duration_minutes} min={5} max={120} step={5}
-                              onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], duration_minutes: parseInt(e.target.value) || 15 }; setEditableAgenda(a); }}
-                              className="w-14 px-2 py-1.5 rounded-lg border border-zinc-200 text-xs text-center focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-                            <span className="text-xs text-zinc-400">min</span>
-                          </div>
-                          <button type="button" onClick={() => setEditableAgenda(editableAgenda.filter((_, j) => j !== i))}
-                            className="text-zinc-300 hover:text-red-500 mt-1 flex-shrink-0">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                {showAgendaPreview && editableAgenda.length > 0 && (
+                  <div className="space-y-2">
+                    {editableAgenda.map((item, i) => (
+                      <div key={item.id || `new-${i}`} className="flex items-start gap-3 bg-zinc-50 rounded-xl p-3">
+                        <span className="w-6 h-6 flex items-center justify-center bg-zinc-900 text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                        <div className="flex-1 space-y-1.5">
+                          <input type="text" value={item.title}
+                            onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], title: e.target.value }; setEditableAgenda(a); }}
+                            placeholder="Titre du sujet"
+                            className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+                          <input type="text" value={item.description}
+                            onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], description: e.target.value }; setEditableAgenda(a); }}
+                            placeholder="Description courte"
+                            className="w-full px-2 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
                         </div>
-                      ))}
-                      <button type="button" onClick={() => { setShowAgendaPreview(false); setAiSubjects([]); setEditableAgenda([]); }}
-                        className="text-xs text-zinc-400 hover:text-zinc-600">Recommencer</button>
-                    </div>
-                  )}
-                </>
-              )}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <input type="number" value={item.duration_minutes} min={5} max={120} step={5}
+                            onChange={(e) => { const a = [...editableAgenda]; a[i] = { ...a[i], duration_minutes: parseInt(e.target.value) || 15 }; setEditableAgenda(a); }}
+                            className="w-14 px-2 py-1.5 rounded-lg border border-zinc-200 text-xs text-center focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+                          <span className="text-xs text-zinc-400">min</span>
+                        </div>
+                        <button type="button" onClick={() => setEditableAgenda(editableAgenda.filter((_, j) => j !== i))}
+                          className="text-zinc-300 hover:text-red-500 mt-1 flex-shrink-0">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {showAgendaPreview && editableAgenda.length === 0 && (
+                  <p className="text-xs text-zinc-400 text-center py-3">Aucun sujet à l&apos;ordre du jour.</p>
+                )}
+              </div>
 
               <div className="flex gap-2 pt-2">
                 <button type="submit" disabled={saving}
