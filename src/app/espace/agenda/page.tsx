@@ -1,7 +1,8 @@
-import { getCurrentUser } from "@/lib/supabase/auth";
+import { getCurrentUser, canViewReunions } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AgendaParticipeButton from "./AgendaParticipeButton";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ export default async function AgendaPage() {
 
   const tuesdays = getUpcomingTuesdays(12);
 
+  const isExec = canViewReunions(profile);
+
   type AgendaEvent = {
     id: string;
     title: string;
@@ -47,6 +50,7 @@ export default async function AgendaPage() {
     location: string | null;
     category: string | null;
     isRecurring?: boolean;
+    isMeeting?: boolean;
   };
 
   const allEvents: AgendaEvent[] = (events || []).map((e) => ({
@@ -57,6 +61,51 @@ export default async function AgendaPage() {
     location: e.location,
     category: e.category,
   }));
+
+  if (isExec) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const { data: meetings } = await supabase
+      .from("meetings")
+      .select("id, title, meeting_date, starts_time, ends_time, location, status")
+      .gte("meeting_date", todayStr)
+      .not("status", "in", '("archive","termine")')
+      .order("meeting_date", { ascending: true })
+      .limit(10);
+
+    for (const m of meetings || []) {
+      const dateStr = m.meeting_date;
+      const startTime = m.starts_time || "09:30";
+      const endTime = m.ends_time || "11:30";
+
+      const p = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Paris",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false,
+      });
+      const fakeStart = new Date(`${dateStr}T${startTime}:00Z`);
+      const partsS = p.formatToParts(fakeStart);
+      const gS = (t: string) => partsS.find((x) => x.type === t)!.value;
+      const offsetStart = new Date(`${gS("year")}-${gS("month")}-${gS("day")}T${gS("hour")}:${gS("minute")}:${gS("second")}Z`).getTime() - fakeStart.getTime();
+      const startsAt = new Date(fakeStart.getTime() - offsetStart).toISOString();
+
+      const fakeEnd = new Date(`${dateStr}T${endTime}:00Z`);
+      const partsE = p.formatToParts(fakeEnd);
+      const gE = (t: string) => partsE.find((x) => x.type === t)!.value;
+      const offsetEnd = new Date(`${gE("year")}-${gE("month")}-${gE("day")}T${gE("hour")}:${gE("minute")}:${gE("second")}Z`).getTime() - fakeEnd.getTime();
+      const endsAt = new Date(fakeEnd.getTime() - offsetEnd).toISOString();
+
+      allEvents.push({
+        id: `meeting-${m.id}`,
+        title: m.title,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        location: m.location,
+        category: "reunion",
+        isMeeting: true,
+      });
+    }
+  }
 
   for (const tuesday of tuesdays) {
     const tDateStr = tuesday.toLocaleDateString("en-CA");
@@ -144,12 +193,17 @@ export default async function AgendaPage() {
                   const end = event.ends_at ? new Date(event.ends_at) : null;
                   const timeStr = `${start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}${end ? ` – ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}` : ""}`;
                   const isMardi = event.category === "mardi-coworking";
-                  const isReal = !event.isRecurring;
+                  const isMeeting = !!(event as AgendaEvent).isMeeting;
+                  const isReal = !event.isRecurring && !isMeeting;
+                  const meetingId = isMeeting ? event.id.replace("meeting-", "") : null;
 
                   return (
                     <div
                       key={event.id}
-                      className={`bg-white border rounded-2xl p-5 ${isMardi ? "border-amber-200" : "border-zinc-200"}`}
+                      className={`bg-white border rounded-2xl p-5 ${
+                        isMeeting ? "border-emerald-200" :
+                        isMardi ? "border-amber-200" : "border-zinc-200"
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -170,10 +224,26 @@ export default async function AgendaPage() {
                               initialRegistered={registeredSet.has(event.id)}
                             />
                           )}
+                          {isMeeting && meetingId && (
+                            <Link
+                              href={`/espace/reunions/${meetingId}`}
+                              className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700"
+                            >
+                              Voir la réunion
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </Link>
+                          )}
                         </div>
                         {isMardi && (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                             Mardi
+                          </span>
+                        )}
+                        {isMeeting && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            Réunion
                           </span>
                         )}
                       </div>
