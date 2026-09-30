@@ -426,6 +426,42 @@ export default function ReunionsClient({
     setTodos((prev) => prev.filter((x) => x.id !== id));
   }
 
+  // ---- Todo editing ----
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [ef, setEf] = useState({ title: "", assigned_to: "", due_date: "" });
+
+  function startEditTodo(t: TodoRow) {
+    setEditingTodoId(t.id);
+    setEf({
+      title: t.title,
+      assigned_to: t.assigned_to || "",
+      due_date: t.due_date || "",
+    });
+  }
+
+  async function saveEditTodo(id: string) {
+    if (!ef.title.trim()) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("meeting_todos")
+      .update({
+        title: ef.title.trim(),
+        assigned_to: ef.assigned_to || null,
+        due_date: ef.due_date || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*, profiles!meeting_todos_assigned_to_fkey(first_name, last_name)")
+      .single();
+    if (!error && data) {
+      setTodos((prev) => prev.map((t) => (t.id === id ? data : t)));
+      setEditingTodoId(null);
+      flash("success", "Action modifiée !");
+    } else {
+      flash("error", error?.message || "Erreur");
+    }
+  }
+
   // ---- Todo creation ----
   const [showTodoForm, setShowTodoForm] = useState(false);
   const [tf, setTf] = useState({ title: "", assigned_to: "", due_date: "", meeting_id: "" });
@@ -965,10 +1001,50 @@ export default function ReunionsClient({
             ) : (
               openTodos.map((t) => {
                 const meeting = t.meeting_id ? meetings.find((m) => m.id === t.meeting_id) : null;
+                const isEditing = editingTodoId === t.id;
+
+                if (isEditing) {
+                  return (
+                    <div key={t.id} className="bg-white border-2 border-zinc-900 rounded-2xl p-4 space-y-3">
+                      <input type="text" value={ef.title}
+                        onChange={(e) => setEf({ ...ef, title: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                        autoFocus />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Responsable</label>
+                          <select value={ef.assigned_to} onChange={(e) => setEf({ ...ef, assigned_to: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900">
+                            <option value="">À définir</option>
+                            {execMembers.map((m) => (
+                              <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-zinc-500 mb-1">Échéance</label>
+                          <input type="date" value={ef.due_date} onChange={(e) => setEf({ ...ef, due_date: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => saveEditTodo(t.id)}
+                          className="px-4 py-1.5 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800">
+                          Enregistrer
+                        </button>
+                        <button onClick={() => setEditingTodoId(null)}
+                          className="px-4 py-1.5 border border-zinc-200 rounded-xl text-xs hover:bg-zinc-50">
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={t.id} className="bg-white border border-zinc-200 rounded-2xl p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEditTodo(t)}>
                         <p className="text-sm font-medium text-zinc-900">{t.title}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           {t.profiles && (
