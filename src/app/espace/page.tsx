@@ -222,12 +222,16 @@ export default async function EspacePage() {
                 {" · 09:30 – 10:30"}
               </p>
               {otherTuesdayEvents.length > 0 && (
-                <div className="mt-3 space-y-1">
+                <div className="mt-4 space-y-2">
+                  <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">Ateliers du jour</p>
                   {[...(nextEvent && !nextEvent.title.toLowerCase().includes("présentation") ? [nextEvent] : []), ...otherTuesdayEvents].map((ev) => (
-                    <p key={ev.id} className="text-white/40 text-xs">
-                      + {ev.title} · {new Date(ev.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
-                      {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
-                    </p>
+                    <div key={ev.id} className="flex items-center gap-3 bg-white/10 rounded-lg px-3 py-2">
+                      <span className="text-white/70 text-xs font-medium whitespace-nowrap">
+                        {new Date(ev.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
+                        {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
+                      </span>
+                      <span className="text-white/90 text-sm font-medium">{ev.title}</span>
+                    </div>
                   ))}
                 </div>
               )}
