@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { MeetingStatus, TodoStatus, SubjectStatus } from "@/lib/supabase/types";
 import Link from "next/link";
@@ -18,6 +18,7 @@ interface MeetingRow {
   ends_time: string | null;
   status: MeetingStatus;
   raw_notes: string | null;
+  audio_url: string | null;
   created_by: string | null;
   profiles?: { first_name: string; last_name: string } | null;
 }
@@ -72,7 +73,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   brouillon: "bg-zinc-100 text-zinc-600",
   planifie: "bg-emerald-100 text-emerald-700",
-  en_cours: "bg-blue-100 text-blue-700",
+  en_cours: "bg-red-100 text-red-700",
   termine: "bg-zinc-100 text-zinc-500",
   archive: "bg-zinc-50 text-zinc-400",
 };
@@ -100,6 +101,12 @@ const TODO_STATUS_COLORS: Record<string, string> = {
   terminee: "bg-emerald-100 text-emerald-700",
 };
 
+function formatTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export default function MeetingDetailClient({
   meeting: initMeeting,
   subjects: initSubjects,
@@ -115,7 +122,7 @@ export default function MeetingDetailClient({
   execMembers: ExecMember[];
   userId: string;
 }) {
-  const [meeting] = useState(initMeeting);
+  const [meeting, setMeeting] = useState(initMeeting);
   const [subjects, setSubjects] = useState(initSubjects);
   const [attendees, setAttendees] = useState(initAttendees);
   const [todos, setTodos] = useState(initTodos);
@@ -123,6 +130,36 @@ export default function MeetingDetailClient({
   const [showTodoForm, setShowTodoForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tf, setTf] = useState({ title: "", assigned_to: "", due_date: "" });
+
+  // Live mode state
+  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
+  const [subjectTimers, setSubjectTimers] = useState<Record<string, number>>({});
+  const [timerRunning, setTimerRunning] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [subjectNotes, setSubjectNotes] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    initSubjects.forEach((s) => { if (s.notes) init[s.id] = s.notes; });
+    return init;
+  });
+
+  // Audio recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(meeting.audio_url);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // Dictation (Web Speech API)
+  const [dictating, setDictating] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const dictationTargetRef = useRef<string | null>(null);
+
+  // Compte rendu
+  const [generatingCR, setGeneratingCR] = useState(false);
+
+  const isLive = meeting.status === "en_cours";
+  const isFinished = meeting.status === "termine" || meeting.status === "archive";
 
   function getMemberName(id: string | null) {
     if (!id) return null;
@@ -139,6 +176,104 @@ export default function MeetingDetailClient({
   const presentCount = attendees.filter((a) => a.response === "present").length;
   const absentCount = attendees.filter((a) => a.response === "absent").length;
   const totalDuration = subjects.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+
+  // ---- Timer logic ----
+
+  const tickTimer = useCallback(() => {
+    setSubjectTimers((prev) => {
+      if (!activeSubjectId) return prev;
+      const current = prev[activeSubjectId] || 0;
+      return { ...prev, [activeSubjectId]: current + 1 };
+    });
+  }, [activeSubjectId]);
+
+  useEffect(() => {
+    if (timerRunning && activeSubjectId) {
+      timerRef.current = setInterval(tickTimer, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerRunning, activeSubjectId, tickTimer]);
+
+  function startSubject(subjectId: string) {
+    if (activeSubjectId && activeSubjectId !== subjectId) {
+      setTimerRunning(false);
+    }
+    setActiveSubjectId(subjectId);
+    setTimerRunning(true);
+    updateSubjectStatus(subjectId, "en_cours");
+  }
+
+  function pauseTimer() {
+    setTimerRunning(false);
+  }
+
+  function resumeTimer() {
+    if (activeSubjectId) setTimerRunning(true);
+  }
+
+  function finishSubject(subjectId: string) {
+    setTimerRunning(false);
+    setActiveSubjectId(null);
+    updateSubjectStatus(subjectId, "traite");
+    saveSubjectNotes(subjectId);
+  }
+
+  // ---- Meeting status ----
+
+  async function changeMeetingStatus(newStatus: MeetingStatus) {
+    const res = await fetch("/api/reunions/meetings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: meeting.id, status: newStatus }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setMeeting(data);
+      flash("success", newStatus === "en_cours" ? "Réunion lancée !" : "Réunion terminée.");
+    } else {
+      flash("error", "Erreur lors du changement de statut.");
+    }
+  }
+
+  // ---- Subject notes ----
+
+  async function saveSubjectNotes(subjectId: string) {
+    const notes = subjectNotes[subjectId] || "";
+    await fetch("/api/reunions/subjects", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: subjectId, notes }),
+    });
+    setSubjects((prev) => prev.map((s) => (s.id === subjectId ? { ...s, notes } : s)));
+  }
+
+  async function saveAllNotes() {
+    for (const s of subjects) {
+      if (subjectNotes[s.id] !== undefined) {
+        await saveSubjectNotes(s.id);
+      }
+    }
+    const allNotes = subjects
+      .map((s) => {
+        const n = subjectNotes[s.id];
+        return n ? `## ${s.title}\n${n}` : null;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (allNotes) {
+      await fetch("/api/reunions/meetings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: meeting.id, raw_notes: allNotes }),
+      });
+    }
+    flash("success", "Notes sauvegardées !");
+  }
+
+  // ---- Attendance ----
 
   async function respondAttendance(response: string) {
     const res = await fetch("/api/reunions/attendees", {
@@ -170,6 +305,8 @@ export default function MeetingDetailClient({
       setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
     }
   }
+
+  // ---- Todos ----
 
   async function updateTodoStatus(id: string, newStatus: TodoStatus) {
     const supabase = createClient();
@@ -210,6 +347,139 @@ export default function MeetingDetailClient({
     setSaving(false);
   }
 
+  // ---- Audio recording ----
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        setAudioBlob(blob);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      flash("error", "Impossible d'accéder au microphone.");
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  }
+
+  async function uploadAudio() {
+    if (!audioBlob) return;
+    setUploadingAudio(true);
+    const formData = new FormData();
+    formData.append("file", audioBlob, `reunion-${meeting.id}.webm`);
+    formData.append("meeting_id", meeting.id);
+
+    const res = await fetch("/api/reunions/audio", { method: "POST", body: formData });
+    if (res.ok) {
+      const data = await res.json();
+      setAudioUrl(data.url);
+      setAudioBlob(null);
+      flash("success", "Enregistrement sauvegardé !");
+    } else {
+      flash("error", "Erreur lors de l'envoi de l'enregistrement.");
+    }
+    setUploadingAudio(false);
+  }
+
+  // ---- Dictation (Web Speech API) ----
+
+  function startDictation(subjectId: string) {
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      flash("error", "La dictée vocale n'est pas supportée par ce navigateur.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-FR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setSubjectNotes((prev) => ({
+          ...prev,
+          [subjectId]: (prev[subjectId] || "") + finalTranscript + " ",
+        }));
+      }
+    };
+
+    recognition.onerror = () => {
+      setDictating(false);
+      dictationTargetRef.current = null;
+    };
+
+    recognition.onend = () => {
+      if (dictating && dictationTargetRef.current === subjectId) {
+        try { recognition.start(); } catch { /* already ended */ }
+      }
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    dictationTargetRef.current = subjectId;
+    setDictating(true);
+  }
+
+  function stopDictation() {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    dictationTargetRef.current = null;
+    setDictating(false);
+  }
+
+  // ---- Compte rendu IA ----
+
+  async function generateCompteRendu() {
+    setGeneratingCR(true);
+    await saveAllNotes();
+
+    const res = await fetch("/api/reunions/compte-rendu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meeting_id: meeting.id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setMeeting((prev) => ({ ...prev, summary: data.summary, status: "termine" }));
+      flash("success", "Compte rendu généré !");
+    } else {
+      flash("error", "Erreur lors de la génération du compte rendu.");
+    }
+    setGeneratingCR(false);
+  }
+
+  // ---- Render ----
+
   return (
     <div>
       {/* Back link */}
@@ -227,12 +497,15 @@ export default function MeetingDetailClient({
       )}
 
       {/* Header */}
-      <div className="bg-white border border-zinc-200 rounded-2xl p-6 mb-6">
+      <div className={`bg-white border rounded-2xl p-6 mb-6 ${isLive ? "border-red-300 ring-2 ring-red-100" : "border-zinc-200"}`}>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-xl font-bold text-zinc-900">{meeting.title}</h1>
               <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-medium ${STATUS_COLORS[meeting.status] || STATUS_COLORS.brouillon}`}>
+                {isLive && (
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse" />
+                )}
                 {STATUS_LABELS[meeting.status] || meeting.status}
               </span>
             </div>
@@ -246,12 +519,27 @@ export default function MeetingDetailClient({
               {meeting.referent_id && <span>Référent : {getMemberName(meeting.referent_id)}</span>}
             </div>
           </div>
-          {meeting.video_link && (
-            <a href={meeting.video_link} target="_blank" rel="noopener noreferrer"
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 flex-shrink-0">
-              Rejoindre en visio
-            </a>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {meeting.video_link && (
+              <a href={meeting.video_link} target="_blank" rel="noopener noreferrer"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700">
+                Rejoindre en visio
+              </a>
+            )}
+            {meeting.status === "planifie" && (
+              <button onClick={() => changeMeetingStatus("en_cours")}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-semibold hover:bg-red-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                Lancer la réunion
+              </button>
+            )}
+            {isLive && (
+              <button onClick={() => { saveAllNotes(); changeMeetingStatus("termine"); }}
+                className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800">
+                Terminer la réunion
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Attendance */}
@@ -282,51 +570,206 @@ export default function MeetingDetailClient({
         </div>
       </div>
 
+      {/* Audio controls — visible in live or after */}
+      {(isLive || audioUrl || audioBlob) && (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+          <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+          </svg>
+          {isLive && !isRecording && !audioBlob && (
+            <button onClick={startRecording}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-white rounded-full" />
+              Enregistrer la réunion
+            </button>
+          )}
+          {isRecording && (
+            <>
+              <span className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Enregistrement en cours…
+              </span>
+              <button onClick={stopRecording}
+                className="px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800">
+                Arrêter
+              </button>
+            </>
+          )}
+          {audioBlob && !isRecording && (
+            <>
+              <audio controls src={URL.createObjectURL(audioBlob)} className="h-8" />
+              <button onClick={uploadAudio} disabled={uploadingAudio}
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50">
+                {uploadingAudio ? "Envoi…" : "Sauvegarder l'enregistrement"}
+              </button>
+            </>
+          )}
+          {audioUrl && !audioBlob && (
+            <audio controls src={audioUrl} className="h-8" />
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Ordre du jour (2/3) */}
+        {/* Main content (2/3) */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Ordre du jour */}
           <div className="bg-white border border-zinc-200 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-zinc-900">Ordre du jour</h2>
-              {totalDuration > 0 && (
-                <span className="text-xs text-zinc-400">{totalDuration} min estimées</span>
-              )}
+              <div className="flex items-center gap-3">
+                {totalDuration > 0 && (
+                  <span className="text-xs text-zinc-400">{totalDuration} min estimées</span>
+                )}
+                {isLive && (
+                  <button onClick={saveAllNotes}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                    Sauvegarder les notes
+                  </button>
+                )}
+              </div>
             </div>
 
             {subjects.length === 0 ? (
               <p className="text-sm text-zinc-400 py-6 text-center">Aucun sujet à l&apos;ordre du jour.</p>
             ) : (
               <div className="space-y-3">
-                {subjects.map((s, i) => (
-                  <div key={s.id} className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-                    <span className="w-6 h-6 flex items-center justify-center bg-zinc-900 text-white rounded-full text-xs font-bold flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-zinc-800">{s.title}</p>
-                          {s.description && <p className="text-xs text-zinc-500 mt-0.5">{s.description}</p>}
-                          {s.profiles && (
-                            <p className="text-[11px] text-zinc-400 mt-1">Proposé par {s.profiles.first_name} {s.profiles.last_name}</p>
+                {subjects.map((s, i) => {
+                  const elapsed = subjectTimers[s.id] || 0;
+                  const budgetSec = (s.duration_minutes || 0) * 60;
+                  const isActive = activeSubjectId === s.id;
+                  const isOver = budgetSec > 0 && elapsed > budgetSec;
+                  const isDone = s.status === "traite";
+
+                  return (
+                    <div key={s.id} className={`rounded-xl border p-4 transition-all ${
+                      isActive ? "border-blue-300 bg-blue-50 ring-2 ring-blue-100" :
+                      isDone ? "border-emerald-200 bg-emerald-50/50" :
+                      "border-zinc-100 bg-zinc-50"
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold flex-shrink-0 mt-0.5 ${
+                          isDone ? "bg-emerald-500 text-white" :
+                          isActive ? "bg-blue-600 text-white" :
+                          "bg-zinc-900 text-white"
+                        }`}>
+                          {isDone ? (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          ) : i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className={`text-sm font-medium ${isDone ? "text-emerald-700 line-through" : "text-zinc-800"}`}>{s.title}</p>
+                              {s.description && <p className="text-xs text-zinc-500 mt-0.5">{s.description}</p>}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {/* Timer display */}
+                              {(isLive || elapsed > 0) && (
+                                <span className={`text-xs font-mono font-medium px-2 py-0.5 rounded ${
+                                  isOver ? "bg-red-100 text-red-700" :
+                                  isActive ? "bg-blue-100 text-blue-700" :
+                                  "bg-zinc-100 text-zinc-500"
+                                }`}>
+                                  {formatTimer(elapsed)}
+                                  {budgetSec > 0 && ` / ${formatTimer(budgetSec)}`}
+                                </span>
+                              )}
+                              {!isLive && (
+                                <select value={s.status}
+                                  onChange={(e) => updateSubjectStatus(s.id, e.target.value as SubjectStatus)}
+                                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border-0 cursor-pointer">
+                                  {Object.entries(SUBJECT_STATUS_LABELS).map(([k, v]) => (
+                                    <option key={k} value={k}>{v}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Live controls */}
+                          {isLive && !isDone && (
+                            <div className="flex items-center gap-2 mt-2">
+                              {!isActive && (
+                                <button onClick={() => startSubject(s.id)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">
+                                  Démarrer
+                                </button>
+                              )}
+                              {isActive && timerRunning && (
+                                <button onClick={pauseTimer}
+                                  className="px-3 py-1 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600">
+                                  Pause
+                                </button>
+                              )}
+                              {isActive && !timerRunning && (
+                                <button onClick={resumeTimer}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700">
+                                  Reprendre
+                                </button>
+                              )}
+                              {isActive && (
+                                <button onClick={() => finishSubject(s.id)}
+                                  className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700">
+                                  Terminer ce sujet
+                                </button>
+                              )}
+                            </div>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {s.duration_minutes && (
-                            <span className="text-[11px] text-zinc-400">{s.duration_minutes} min</span>
+
+                          {/* Notes per subject in live mode */}
+                          {(isLive || (subjectNotes[s.id] && !isFinished)) && (
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="text-[11px] font-medium text-zinc-500">Notes</label>
+                                {isLive && (
+                                  <button
+                                    onClick={() => {
+                                      if (dictating && dictationTargetRef.current === s.id) {
+                                        stopDictation();
+                                      } else {
+                                        if (dictating) stopDictation();
+                                        startDictation(s.id);
+                                      }
+                                    }}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${
+                                      dictating && dictationTargetRef.current === s.id
+                                        ? "bg-red-100 text-red-700"
+                                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                                    }`}>
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                                    </svg>
+                                    {dictating && dictationTargetRef.current === s.id ? "Arrêter" : "Dicter"}
+                                  </button>
+                                )}
+                              </div>
+                              <textarea
+                                value={subjectNotes[s.id] || ""}
+                                onChange={(e) => setSubjectNotes((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                                onBlur={() => isLive && saveSubjectNotes(s.id)}
+                                rows={3}
+                                readOnly={isFinished}
+                                placeholder="Prendre des notes sur ce sujet…"
+                                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                              />
+                            </div>
                           )}
-                          <select value={s.status}
-                            onChange={(e) => updateSubjectStatus(s.id, e.target.value as SubjectStatus)}
-                            className="px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border-0 cursor-pointer">
-                            {Object.entries(SUBJECT_STATUS_LABELS).map(([k, v]) => (
-                              <option key={k} value={k}>{v}</option>
-                            ))}
-                          </select>
+
+                          {/* Show saved notes for finished meetings */}
+                          {isFinished && s.notes && (
+                            <div className="mt-2 px-3 py-2 bg-zinc-100 rounded-lg">
+                              <p className="text-[11px] font-medium text-zinc-500 mb-1">Notes</p>
+                              <p className="text-xs text-zinc-600 whitespace-pre-wrap">{s.notes}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -339,6 +782,17 @@ export default function MeetingDetailClient({
                 {meeting.summary}
               </div>
             </div>
+          )}
+
+          {/* Generate CR button */}
+          {(isLive || meeting.status === "termine") && !meeting.summary && (
+            <button onClick={generateCompteRendu} disabled={generatingCR}
+              className="w-full py-3 bg-zinc-900 text-white rounded-2xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              {generatingCR ? "Génération du compte rendu…" : "Générer le compte rendu avec l'IA"}
+            </button>
           )}
         </div>
 
@@ -420,6 +874,14 @@ export default function MeetingDetailClient({
               </div>
             )}
           </div>
+
+          {/* Audio */}
+          {audioUrl && (
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5">
+              <h3 className="font-semibold text-zinc-900 text-sm mb-3">Enregistrement</h3>
+              <audio controls src={audioUrl} className="w-full" />
+            </div>
+          )}
         </div>
       </div>
     </div>

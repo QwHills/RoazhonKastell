@@ -276,6 +276,7 @@ export interface Meeting {
   ends_time: string | null;
   status: MeetingStatus;
   raw_notes: string | null;
+  audio_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
