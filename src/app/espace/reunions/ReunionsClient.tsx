@@ -687,6 +687,10 @@ export default function ReunionsClient({
                   className="px-4 py-2 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
                   + Proposer un sujet
                 </button>
+                <button onClick={() => startEdit(prochaine)}
+                  className="px-4 py-2 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+                  Modifier
+                </button>
                 {prochaine.video_link && (
                   <a href={prochaine.video_link} target="_blank" rel="noopener noreferrer"
                     className="px-4 py-2 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
