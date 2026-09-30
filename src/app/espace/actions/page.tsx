@@ -1,7 +1,7 @@
 import { getCurrentUser, isAdmin, hasRole } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
+import ActionCard from "./ActionCard";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,7 @@ export default async function MesActionsPage() {
     };
     return {
       id: t.id,
+      actionId: t.action_id,
       actionTitle: action.title,
       instruction: action.instruction,
       duration: action.duration_minutes,
@@ -116,29 +117,7 @@ export default async function MesActionsPage() {
       {actions.length > 0 ? (
         <div className="space-y-3 mb-12">
           {actions.map((a) => (
-            <div key={a.id} className={`bg-white border rounded-2xl p-5 ${
-              a.status === "realisee" ? "border-emerald-200" :
-              a.status === "declinee" ? "border-zinc-100" :
-              "border-zinc-200"
-            }`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-zinc-900">{a.actionTitle}</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Après « {a.eventTitle} » · {new Date(a.eventDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}
-                  </p>
-                </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  a.status === "realisee" ? "bg-emerald-100 text-emerald-700" :
-                  a.status === "declinee" ? "bg-zinc-100 text-zinc-400" :
-                  "bg-amber-100 text-amber-700"
-                }`}>
-                  {a.status === "realisee" ? "Fait" : a.status === "declinee" ? "Déclinée" : "À faire"}
-                </span>
-              </div>
-              <p className="text-sm text-zinc-600 mt-2 line-clamp-2">{a.instruction}</p>
-              <p className="text-xs text-zinc-400 mt-2">{a.duration} minutes</p>
-            </div>
+            <ActionCard key={a.id} action={a} />
           ))}
         </div>
       ) : (
