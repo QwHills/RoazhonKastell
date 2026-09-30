@@ -224,15 +224,17 @@ export default async function EspacePage() {
               {otherTuesdayEvents.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <p className="text-white/60 text-xs font-semibold uppercase tracking-wide">Ateliers du jour</p>
-                  {[...(nextEvent && !nextEvent.title.toLowerCase().includes("présentation") ? [nextEvent] : []), ...otherTuesdayEvents].map((ev) => (
-                    <div key={ev.id} className="flex items-center gap-3 bg-white/10 rounded-lg px-3 py-2">
-                      <span className="text-white/70 text-xs font-medium whitespace-nowrap">
-                        {new Date(ev.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
-                        {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
-                      </span>
-                      <span className="text-white/90 text-sm font-medium">{ev.title}</span>
-                    </div>
-                  ))}
+                  <div className="inline-flex flex-col gap-2">
+                    {[...(nextEvent && !nextEvent.title.toLowerCase().includes("présentation") ? [nextEvent] : []), ...otherTuesdayEvents].map((ev) => (
+                      <div key={ev.id} className="inline-flex items-center gap-3 bg-white/10 rounded-lg px-3 py-2 w-fit">
+                        <span className="text-white/70 text-xs font-medium whitespace-nowrap">
+                          {new Date(ev.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
+                          {ev.ends_at && ` – ${new Date(ev.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`}
+                        </span>
+                        <span className="text-white/90 text-sm font-medium">{ev.title}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {nextEvent ? (
