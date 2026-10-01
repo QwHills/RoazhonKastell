@@ -1,7 +1,8 @@
+import { cache } from "react";
 import { createClient } from "./server";
 import type { Profile, UserRole } from "./types";
 
-export async function getCurrentUser(): Promise<Profile | null> {
+export const getCurrentUser = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,7 +16,7 @@ export async function getCurrentUser(): Promise<Profile | null> {
     .single();
 
   return data as Profile | null;
-}
+});
 
 export function hasRole(profile: Profile, role: UserRole): boolean {
   return profile.roles.includes(role);

@@ -1,6 +1,7 @@
 import { getCurrentUser, isAdmin, canManageMembers, hasRole, canViewReunions } from "@/lib/supabase/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { Profile } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
@@ -229,9 +230,24 @@ export default async function EspacePage() {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (serviceRoleKey && supabaseUrl) {
-      const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=500`, {
-        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
-      });
+      const [authRes, { data: allProfiles }, { data: partnerMembers }, { data: partners }] = await Promise.all([
+        fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=500`, {
+          headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
+          next: { revalidate: 300 },
+        }),
+        supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email, roles, member_status")
+          .eq("member_status", "actif")
+          .not("email", "like", "%@roazhonkastell.test"),
+        supabase
+          .from("partner_members")
+          .select("user_id, partner_id"),
+        supabase
+          .from("partners")
+          .select("id, name, description, logo_url, status"),
+      ]);
+
       const authData = await authRes.json();
       const authUsers = authData?.users || authData || [];
       const signInMap = new Map<string, boolean>();
@@ -239,20 +255,7 @@ export default async function EspacePage() {
         if (u.email) signInMap.set(u.email, !!u.last_sign_in_at);
       }
 
-      const { data: allProfiles } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, roles, member_status")
-        .eq("member_status", "actif")
-        .not("email", "like", "%@roazhonkastell.test");
-
-      const { data: partnerMembers } = await supabase
-        .from("partner_members")
-        .select("user_id, partner_id");
       const partnerMemberMap = new Map((partnerMembers || []).map((pm) => [pm.user_id, pm.partner_id]));
-
-      const { data: partners } = await supabase
-        .from("partners")
-        .select("id, name, description, logo_url, status");
       const partnerMap = new Map((partners || []).map((p) => [p.id, p]));
 
       const adhConnected: { name: string; email: string; connected: boolean }[] = [];
@@ -309,9 +312,16 @@ export default async function EspacePage() {
       </div>
 
       {/* Next event card */}
-      <div className="relative rounded-2xl overflow-hidden mb-8 bg-zinc-900 text-white"
-        style={{ backgroundImage: "url(/chateau.jpg)", backgroundSize: "cover", backgroundPosition: "center 30%" }}
-      >
+      <div className="relative rounded-2xl overflow-hidden mb-8 bg-zinc-900 text-white">
+        <Image
+          src="/chateau.jpg"
+          alt=""
+          fill
+          sizes="(max-width: 1024px) 100vw, calc(100vw - 256px)"
+          className="object-cover"
+          style={{ objectPosition: "center 30%" }}
+          priority
+        />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-900/90 via-zinc-900/70 to-zinc-900/40" />
         <div className="relative z-10 p-8 sm:p-10">
           <div className="flex items-center gap-2 text-sm text-white/60 mb-3">

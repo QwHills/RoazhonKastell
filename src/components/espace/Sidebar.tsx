@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/supabase/types";
 
@@ -205,12 +206,15 @@ export default function Sidebar({ profile }: { profile: Profile }) {
         }`}
       >
         {/* Background photo */}
-        <img
+        <Image
           src="/chateau-drone.jpg"
           alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          aria-hidden
+          fill
+          sizes="256px"
+          className="object-cover pointer-events-none"
           style={{ objectPosition: "center 60%" }}
+          priority
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />

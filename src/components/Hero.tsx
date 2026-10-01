@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Hero() {
@@ -7,12 +8,14 @@ export default function Hero() {
       className="relative overflow-hidden bg-zinc-900"
     >
       {/* Background photo — framed on the château facade */}
-      <div
-        className="absolute inset-0 bg-cover"
-        style={{
-          backgroundImage: "url(/chateau-drone.jpg)",
-          backgroundPosition: "center center",
-        }}
+      <Image
+        src="/chateau-drone.jpg"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+        style={{ objectPosition: "center center" }}
       />
 
       {/* Gradient — stronger on the left for text readability, light elsewhere */}

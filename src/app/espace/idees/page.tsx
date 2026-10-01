@@ -10,14 +10,15 @@ export default async function IdeesPage() {
 
   const supabase = await createClient();
 
-  const { data: ideas } = await supabase
-    .from("ideas")
-    .select("*, profiles!ideas_author_id_fkey(first_name, last_name)")
-    .order("created_at", { ascending: false });
-
-  const { data: supports } = await supabase
-    .from("idea_supports")
-    .select("idea_id, user_id");
+  const [{ data: ideas }, { data: supports }] = await Promise.all([
+    supabase
+      .from("ideas")
+      .select("*, profiles!ideas_author_id_fkey(first_name, last_name)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("idea_supports")
+      .select("idea_id, user_id"),
+  ]);
 
   const supportMap: Record<string, string[]> = {};
   (supports || []).forEach((s: { idea_id: string; user_id: string }) => {

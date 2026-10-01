@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
@@ -43,10 +44,12 @@ function DiscoverCards() {
             className="group flex flex-col overflow-hidden bg-white border border-zinc-200 rounded-2xl hover:shadow-lg hover:border-zinc-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
           >
             <div className="relative overflow-hidden bg-zinc-100" style={{ aspectRatio: "16/9" }}>
-              <img
+              <Image
                 src="/photo-conseillers.jpg"
                 alt="Conseillers immobiliers"
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
                 style={{ objectPosition: "center 30%" }}
               />
             </div>
@@ -82,10 +85,12 @@ function DiscoverCards() {
             className="group flex flex-col overflow-hidden bg-white border border-zinc-200 rounded-2xl hover:shadow-lg hover:border-zinc-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
           >
             <div className="relative overflow-hidden bg-zinc-100" style={{ aspectRatio: "16/9" }}>
-              <img
+              <Image
                 src="/photo-partenaires.webp"
                 alt="Partenaires"
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
                 style={{ objectPosition: "center 40%" }}
               />
             </div>
@@ -155,10 +160,12 @@ function EventSection() {
           <div className="flex flex-col sm:flex-row">
             {/* Photo zone */}
             <div className="event-photo flex-shrink-0 relative bg-zinc-100 overflow-hidden">
-              <img
+              <Image
                 src="/photo-coworking.webp"
                 alt="Mardi coworking au château"
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
+                className="object-cover"
               />
             </div>
             {/* Content */}
@@ -311,10 +318,12 @@ async function ActualitesSection() {
             >
               <div className="relative bg-zinc-100 overflow-hidden" style={{ aspectRatio: "16/9" }}>
                 {article.image_url && (
-                  <img
+                  <Image
                     src={article.image_url}
                     alt=""
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
                     style={article.image_position ? { objectPosition: article.image_position } : undefined}
                   />
                 )}
