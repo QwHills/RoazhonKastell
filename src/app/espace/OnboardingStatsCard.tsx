@@ -144,13 +144,19 @@ function UserList({ users }: { users: UserEntry[] }) {
   if (users.length === 0) return <p className="text-xs text-zinc-400 mt-2 ml-1">Aucun</p>;
   return (
     <div className="mt-2 bg-zinc-50 rounded-xl p-3 max-h-48 overflow-y-auto">
-      <div className="space-y-1.5">
-        {users.map((u) => (
-          <div key={u.email} className="flex items-center justify-between text-xs">
-            <span className="text-zinc-700 font-medium">{u.name}</span>
-            <span className="text-zinc-400 text-[11px]">{u.email}</span>
-          </div>
-        ))}
+      <div className="space-y-1">
+        {users.map((u) => {
+          const displayName = u.name.trim() || u.email.split("@")[0];
+          return (
+            <div key={u.email} className="flex items-center gap-2 text-xs py-1 border-b border-zinc-100 last:border-0">
+              <span className="w-5 h-5 rounded-full bg-zinc-200 flex items-center justify-center text-[10px] font-bold text-zinc-500 flex-shrink-0">
+                {displayName[0]?.toUpperCase()}
+              </span>
+              <span className="text-zinc-700 font-medium truncate">{displayName}</span>
+              <span className="text-zinc-400 text-[11px] ml-auto flex-shrink-0">{u.email}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
