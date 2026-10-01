@@ -9,6 +9,7 @@ import AtelierParticipeButton from "./AtelierParticipeButton";
 import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction } from "@/lib/dashboard-cards";
 import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard } from "./DashboardCards";
 import ReunionDashboardCard from "./ReunionDashboardCard";
+import OnboardingStatsCard from "./OnboardingStatsCard";
 
 export const dynamic = "force-dynamic";
 
@@ -218,6 +219,83 @@ export default async function EspacePage() {
 
   const hasCards = !!(weeklyAction || meetSuggestion || partnerDiscovery);
 
+  // Onboarding stats for admins
+  let onboardingStats: {
+    adherents: { connected: { name: string; email: string; connected: boolean }[]; notConnected: { name: string; email: string; connected: boolean }[] };
+    partenaires: { connected: { name: string; email: string; connected: boolean }[]; notConnected: { name: string; email: string; connected: boolean }[]; ficheComplete: { name: string; email: string; connected: boolean }[]; ficheIncomplete: { name: string; email: string; connected: boolean }[] };
+  } | null = null;
+
+  if (admin) {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (serviceRoleKey && supabaseUrl) {
+      const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=500`, {
+        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
+      });
+      const authData = await authRes.json();
+      const authUsers = authData?.users || authData || [];
+      const signInMap = new Map<string, boolean>();
+      for (const u of authUsers) {
+        if (u.email) signInMap.set(u.email, !!u.last_sign_in_at);
+      }
+
+      const { data: allProfiles } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email, roles, member_status")
+        .eq("member_status", "actif")
+        .not("email", "like", "%@roazhonkastell.test");
+
+      const { data: partnerMembers } = await supabase
+        .from("partner_members")
+        .select("user_id, partner_id");
+      const partnerMemberMap = new Map((partnerMembers || []).map((pm) => [pm.user_id, pm.partner_id]));
+
+      const { data: partners } = await supabase
+        .from("partners")
+        .select("id, name, description, logo_url, status");
+      const partnerMap = new Map((partners || []).map((p) => [p.id, p]));
+
+      const adhConnected: { name: string; email: string; connected: boolean }[] = [];
+      const adhNotConnected: { name: string; email: string; connected: boolean }[] = [];
+      const partConnected: { name: string; email: string; connected: boolean }[] = [];
+      const partNotConnected: { name: string; email: string; connected: boolean }[] = [];
+      const partFicheComplete: { name: string; email: string; connected: boolean }[] = [];
+      const partFicheIncomplete: { name: string; email: string; connected: boolean }[] = [];
+
+      for (const p of allProfiles || []) {
+        const roles = (p.roles as string[]) || [];
+        const name = `${p.first_name} ${p.last_name}`.trim();
+        const email = p.email as string;
+        const connected = signInMap.get(email) ?? false;
+        const entry = { name, email, connected };
+
+        if (roles.includes("partenaire")) {
+          if (connected) partConnected.push(entry);
+          else partNotConnected.push(entry);
+          const partnerId = partnerMemberMap.get(p.id);
+          if (partnerId) {
+            const partner = partnerMap.get(partnerId);
+            if (partner && partner.name && partner.description && partner.status !== "brouillon") {
+              partFicheComplete.push(entry);
+            } else {
+              partFicheIncomplete.push(entry);
+            }
+          } else {
+            partFicheIncomplete.push(entry);
+          }
+        } else {
+          if (connected) adhConnected.push(entry);
+          else adhNotConnected.push(entry);
+        }
+      }
+
+      onboardingStats = {
+        adherents: { connected: adhConnected, notConnected: adhNotConnected },
+        partenaires: { connected: partConnected, notConnected: partNotConnected, ficheComplete: partFicheComplete, ficheIncomplete: partFicheIncomplete },
+      };
+    }
+  }
+
   return (
     <div>
       {/* Greeting */}
@@ -416,6 +494,16 @@ export default async function EspacePage() {
               </div>
             </Link>
           )}
+        </div>
+      )}
+
+      {/* Onboarding stats — admin only */}
+      {admin && onboardingStats && (
+        <div className="mb-8">
+          <OnboardingStatsCard
+            adherents={onboardingStats.adherents}
+            partenaires={onboardingStats.partenaires}
+          />
         </div>
       )}
 
