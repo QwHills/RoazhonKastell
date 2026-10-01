@@ -173,22 +173,23 @@ export async function getMeetSuggestion(
 ): Promise<MeetSuggestionData | null> {
   if (!nextEventId) return null;
 
-  const { data: myReg } = await supabase
-    .from("event_registrations")
-    .select("id")
-    .eq("event_id", nextEventId)
-    .eq("user_id", userId)
-    .eq("status", "inscrit")
-    .maybeSingle();
+  const [{ data: myReg }, { data: existing }] = await Promise.all([
+    supabase
+      .from("event_registrations")
+      .select("id")
+      .eq("event_id", nextEventId)
+      .eq("user_id", userId)
+      .eq("status", "inscrit")
+      .maybeSingle(),
+    supabase
+      .from("meet_suggestions")
+      .select("id, status, suggested_user_id")
+      .eq("event_id", nextEventId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
 
   if (!myReg) return null;
-
-  const { data: existing } = await supabase
-    .from("meet_suggestions")
-    .select("id, status, suggested_user_id")
-    .eq("event_id", nextEventId)
-    .eq("user_id", userId)
-    .maybeSingle();
 
   if (existing) {
     const { data: regCheck } = await supabase
@@ -202,19 +203,20 @@ export async function getMeetSuggestion(
     if (!regCheck) {
       await supabase.from("meet_suggestions").delete().eq("id", existing.id);
     } else {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, photo_url, city")
-        .eq("id", existing.suggested_user_id)
-        .single();
-
-      if (profile) {
-        const { data: ev } = await supabase
+      const [{ data: profile }, { data: ev }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, first_name, last_name, photo_url, city")
+          .eq("id", existing.suggested_user_id)
+          .single(),
+        supabase
           .from("events")
           .select("starts_at")
           .eq("id", nextEventId)
-          .single();
+          .single(),
+      ]);
 
+      if (profile) {
         return {
           suggestion: {
             id: existing.id,
@@ -227,43 +229,41 @@ export async function getMeetSuggestion(
     }
   }
 
-  const { data: otherRegs } = await supabase
-    .from("event_registrations")
-    .select("user_id")
-    .eq("event_id", nextEventId)
-    .eq("status", "inscrit")
-    .neq("user_id", userId);
+  const [{ data: otherRegs }, { data: knownRows }] = await Promise.all([
+    supabase
+      .from("event_registrations")
+      .select("user_id")
+      .eq("event_id", nextEventId)
+      .eq("status", "inscrit")
+      .neq("user_id", userId),
+    supabase
+      .from("known_contacts")
+      .select("known_user_id")
+      .eq("user_id", userId),
+  ]);
 
   if (!otherRegs || otherRegs.length === 0) return null;
 
   const candidateIds = otherRegs.map((r) => r.user_id).filter(Boolean) as string[];
-
-  const { data: knownRows } = await supabase
-    .from("known_contacts")
-    .select("known_user_id")
-    .eq("user_id", userId);
-
   const knownSet = new Set((knownRows || []).map((r) => r.known_user_id));
 
-  const { data: candidates } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, photo_url, city, roles")
-    .in("id", candidateIds)
-    .eq("member_status", "actif");
+  const [{ data: candidates }, { data: existingSuggestions }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, first_name, last_name, photo_url, city, roles")
+      .in("id", candidateIds)
+      .eq("member_status", "actif"),
+    supabase
+      .from("meet_suggestions")
+      .select("suggested_user_id")
+      .eq("event_id", nextEventId),
+  ]);
 
   const eligible = (candidates || []).filter(
     (c) => !knownSet.has(c.id) && (c.roles as string[]).includes("adherent"),
   );
 
-  if (eligible.length === 0) {
-    if (knownSet.size > 0 && candidateIds.length > 0) return null;
-    return null;
-  }
-
-  const { data: existingSuggestions } = await supabase
-    .from("meet_suggestions")
-    .select("suggested_user_id")
-    .eq("event_id", nextEventId);
+  if (eligible.length === 0) return null;
 
   const suggestionCounts = new Map<string, number>();
   for (const s of existingSuggestions || []) {
@@ -356,20 +356,21 @@ export async function getPartnerDiscovery(
     .maybeSingle();
 
   if (current) {
-    const { data: partner } = await supabase
-      .from("partners")
-      .select("id, name, slug, logo_url, category, sector, description, contact_situations, status")
-      .eq("id", current.partner_id)
-      .single();
-
-    if (partner && partner.status === "valide") {
-      const { data: contacts } = await supabase
+    const [{ data: partner }, { data: contacts }] = await Promise.all([
+      supabase
+        .from("partners")
+        .select("id, name, slug, logo_url, category, sector, description, contact_situations, status")
+        .eq("id", current.partner_id)
+        .single(),
+      supabase
         .from("partner_contacts")
         .select("name")
-        .eq("partner_id", partner.id)
+        .eq("partner_id", current.partner_id)
         .eq("is_primary", true)
-        .limit(1);
+        .limit(1),
+    ]);
 
+    if (partner && partner.status === "valide") {
       return {
         discovery: {
           id: current.id,
@@ -395,27 +396,27 @@ export async function getPartnerDiscovery(
       .eq("id", current.id);
   }
 
-  const { data: allPartners } = await supabase
-    .from("partners")
-    .select("id, name, slug, logo_url, category, sector, description, contact_situations")
-    .eq("status", "valide");
+  const [{ data: allPartners }, { data: history }, allUserDiscoveries] = await Promise.all([
+    supabase
+      .from("partners")
+      .select("id, name, slug, logo_url, category, sector, description, contact_situations")
+      .eq("status", "valide"),
+    supabase
+      .from("partner_discoveries")
+      .select("partner_id")
+      .eq("user_id", userId),
+    supabase
+      .from("partner_discoveries")
+      .select("partner_id")
+      .eq("period_start", periodStart),
+  ]);
 
   if (!allPartners || allPartners.length === 0) return null;
-
-  const { data: history } = await supabase
-    .from("partner_discoveries")
-    .select("partner_id")
-    .eq("user_id", userId);
 
   const seenIds = new Set((history || []).map((h) => h.partner_id));
 
   let eligible = allPartners.filter((p) => !seenIds.has(p.id));
   if (eligible.length === 0) eligible = allPartners;
-
-  const allUserDiscoveries = await supabase
-    .from("partner_discoveries")
-    .select("partner_id")
-    .eq("period_start", periodStart);
 
   const discoveryCounts = new Map<string, number>();
   for (const d of allUserDiscoveries.data || []) {
