@@ -22,8 +22,9 @@ export default async function EvenementsPage() {
         .map((r) => r.user_id)
         .filter(Boolean) as string[];
 
+      const isPresentation = (e.title as string).toLowerCase().includes("présentation");
       let participantProperties: Record<string, number> = {};
-      if (userIds.length > 0) {
+      if (isPresentation && userIds.length > 0) {
         const { data: props } = await supabase
           .from("shared_properties")
           .select("owner_id")

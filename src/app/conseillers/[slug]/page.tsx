@@ -35,7 +35,8 @@ export default async function ConseillerPage({
     .from("profiles")
     .select("first_name, last_name, bio, city, specialties, email, phone")
     .eq("member_status", "actif")
-    .not("roles", "cs", '{"partenaire"}');
+    .not("roles", "cs", '{"partenaire"}')
+    .not("email", "like", "%@roazhonkastell.test");
 
   const member = (profiles || []).find(
     (p) => getIadSlug(p.first_name, p.last_name) === slug,

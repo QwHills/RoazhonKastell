@@ -28,6 +28,7 @@ export default async function ConseillersPage() {
     .select("first_name, last_name, roles, photo_url")
     .eq("member_status", "actif")
     .not("roles", "cs", '{"partenaire"}')
+    .not("email", "like", "%@roazhonkastell.test")
     .order("first_name", { ascending: true });
 
   const members: ConseillerMember[] = (profiles || []).map((p) => ({
