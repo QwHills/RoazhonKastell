@@ -211,6 +211,28 @@ export default async function EspacePage() {
     }
   }
 
+  let myTuesdayPropertyCount = 0;
+  if (!isPartner && isRegistered) {
+    const adminClient = getAdminClient();
+    const y = nextTuesday.getFullYear();
+    const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
+    const d = String(nextTuesday.getDate()).padStart(2, "0");
+    const sessionDate = `${y}-${m}-${d}`;
+    const { data: session } = await adminClient
+      .from("tuesday_sessions")
+      .select("id")
+      .eq("session_date", sessionDate)
+      .single();
+    if (session) {
+      const { count } = await adminClient
+        .from("tuesday_session_properties")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", session.id)
+        .eq("owner_id", profile.id);
+      myTuesdayPropertyCount = count || 0;
+    }
+  }
+
   const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction, successesCard] = await Promise.all([
     !isPartner ? getWeeklyAction(supabase, profile.id) : Promise.resolve(null),
     !isPartner && nextEvent ? getMeetSuggestion(supabase, profile.id, nextEvent.id) : Promise.resolve(null),
@@ -399,6 +421,31 @@ export default async function EspacePage() {
           )}
         </div>
       </div>
+
+      {/* Property reminder */}
+      {!isPartner && isRegistered && myTuesdayPropertyCount === 0 && (
+        <Link
+          href="/espace/biens"
+          className="flex items-center gap-4 p-4 mb-8 bg-amber-50 border border-amber-200 rounded-2xl hover:shadow-md transition-shadow"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800">
+              Pensez à préparer vos biens pour mardi !
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              Vous êtes inscrit mais n&apos;avez pas encore ajouté de biens à présenter (3 max).
+            </p>
+          </div>
+          <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </Link>
+      )}
 
       {/* Next exec meeting card */}
       {isExec && nextMeeting && (
