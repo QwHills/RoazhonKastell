@@ -30,10 +30,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Vous avez déjà une fiche partenaire." }, { status: 400 });
   }
 
+  // Vérifier si un partenaire avec le même nom existe déjà (créé par un admin)
+  const trimmedName = name.trim();
+  const { data: existingPartner } = await adminClient
+    .from("partners")
+    .select("id")
+    .ilike("name", trimmedName)
+    .limit(1)
+    .single();
+
+  if (existingPartner) {
+    await adminClient
+      .from("partner_members")
+      .insert({ partner_id: existingPartner.id, user_id: profile.id });
+    return NextResponse.json({ ok: true, partnerId: existingPartner.id });
+  }
+
   const { data: partner, error: partnerError } = await adminClient
     .from("partners")
     .insert({
-      name: name.trim(),
+      name: trimmedName,
       category: category?.trim() || null,
       status: "brouillon",
       remuneration: false,
