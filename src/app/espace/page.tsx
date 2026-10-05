@@ -253,20 +253,21 @@ export default async function EspacePage() {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (serviceRoleKey && supabaseUrl) {
+      const adminDb = getAdminClient();
       const [authRes, { data: allProfiles }, { data: partnerMembers }, { data: partners }] = await Promise.all([
         fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=500`, {
           headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
           next: { revalidate: 300 },
         }),
-        supabase
+        adminDb
           .from("profiles")
           .select("id, first_name, last_name, email, roles, member_status")
           .eq("member_status", "actif")
           .not("email", "like", "%@roazhonkastell.test"),
-        supabase
+        adminDb
           .from("partner_members")
           .select("user_id, partner_id"),
-        supabase
+        adminDb
           .from("partners")
           .select("id, name, description, logo_url, status"),
       ]);
