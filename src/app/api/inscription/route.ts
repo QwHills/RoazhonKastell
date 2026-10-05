@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { scrapeIadProfilePhoto } from "@/lib/iad-utils";
 
 const DEFAULT_PASSWORD = process.env.PARTNER_DEFAULT_PASSWORD || "Roazhonkastell35";
 
@@ -77,6 +78,8 @@ export async function POST(request: Request) {
     }
   }
 
+  const photoUrl = await scrapeIadProfilePhoto(firstName, lastName);
+
   await adminClient.from("profiles").update({
     first_name: firstName,
     last_name: lastName,
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
     formule_adhesion: formuleKey,
     cotisation_mensuelle: cotisation,
     rib_url: ribUrl,
+    photo_url: photoUrl,
     member_status: "en_attente",
     roles: ["adherent"],
   }).eq("id", userId);

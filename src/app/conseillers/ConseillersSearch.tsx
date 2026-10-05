@@ -32,6 +32,14 @@ function lookupProfile(slug: string) {
   return undefined;
 }
 
+function iadPhoto(url: string | null, width = 160): string | null {
+  if (!url) return null;
+  if (url.includes("images.iadfrance.fr") && !url.includes("?")) {
+    return `${url}?format=auto&width=${width}`;
+  }
+  return url;
+}
+
 type EnrichedMember = ConseillerMember & {
   city: string | undefined;
   coords: { lat: number; lng: number } | null;
@@ -65,7 +73,7 @@ export default function ConseillersSearch({
     () =>
       members.map((m) => {
         const profile = lookupProfile(m.slug);
-        const city = profile?.city || undefined;
+        const city = m.dbCity || profile?.city || undefined;
         const coords = city ? getCoordsFromCityString(city) : null;
         return { ...m, city, coords };
       }),
@@ -310,7 +318,7 @@ function ConseillerCard({
 }) {
   const initials = getInitials(member.firstName, member.lastName);
   const profile = lookupProfile(member.slug);
-  const photoUrl = member.photoUrl
+  const photoUrl = iadPhoto(member.photoUrl)
     || (profile?.photo ? `${profile.photo}?format=auto&width=160` : null);
 
   const specialRoles = member.roles.filter((r) => SPECIAL_ROLES.includes(r));

@@ -253,9 +253,9 @@ const PROFILES: Record<string, ConseillerProfile> = {
     photo: "https://images.iadfrance.fr/profile-picture/85/8d/c4/858dc4f43549137352749de901110aba0c98991387378c38e698a15203d586fe.png",
     city: "Saint-Jacques-de-la-Lande (35136)",
   },
-  "emilie.boudey": {
-    photo: "",
-    city: "",
+  "emile.boudey": {
+    photo: "https://images.iadfrance.fr/profile-picture/fb/91/8e/fb918ec2adba7d8bf05e60d686cb46f4b5049d1e0864439355d275792228f49d.png",
+    city: "Rennes (35000)",
   },
   "thibault.irlinger": {
     photo: "https://images.iadfrance.fr/profile-picture/eb/06/8f/eb068fc912f2162bbc314e9089ea69704b45f0413b4ea8f8a99211e721b58b1f.png",
@@ -308,6 +308,14 @@ const PROFILES: Record<string, ConseillerProfile> = {
   "isabelle.scudeller": {
     photo: "https://images.iadfrance.fr/profile-picture/0a/43/b0/0a43b00d8e95658c495de9111e5db063523a6619fa4fbd3fb4785b67ac513c8d.png",
     city: "Vitré (35500)",
+  },
+  "brice.lachesnais": {
+    photo: "https://images.iadfrance.fr/profile-picture/14/e0/ab/14e0abde834912460be1488387be17564a310549f5da6e13e1c49a074a8114c9.png",
+    city: "Fougères (35300)",
+  },
+  "quentin.harscouet": {
+    photo: "https://images.iadfrance.fr/profile-picture/50/0f/e1/500fe14e2cd9ce9be95b3ce753414649e907462e7b18b3b2bbaf663fb0d14040.png",
+    city: "Le Rheu (35650)",
   },
 };
 

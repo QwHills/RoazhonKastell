@@ -14,6 +14,7 @@ export type ConseillerMember = {
   slug: string;
   roles: UserRole[];
   photoUrl: string | null;
+  dbCity: string | null;
 };
 
 export default async function ConseillersPage() {
@@ -25,7 +26,7 @@ export default async function ConseillersPage() {
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("first_name, last_name, roles, photo_url")
+    .select("first_name, last_name, roles, photo_url, city")
     .eq("member_status", "actif")
     .not("roles", "cs", '{"partenaire"}')
     .not("email", "like", "%@roazhonkastell.test")
@@ -37,6 +38,7 @@ export default async function ConseillersPage() {
     slug: getIadSlug(p.first_name, p.last_name),
     roles: (p.roles as UserRole[]) || [],
     photoUrl: (p.photo_url as string | null) || null,
+    dbCity: (p.city as string | null) || null,
   }));
 
   return (

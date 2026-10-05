@@ -18,6 +18,14 @@ function lookupProfile(slug: string) {
   return undefined;
 }
 
+function iadPhoto(url: string | null, width = 320): string | null {
+  if (!url) return null;
+  if (url.includes("images.iadfrance.fr") && !url.includes("?")) {
+    return `${url}?format=auto&width=${width}`;
+  }
+  return url;
+}
+
 export default async function ConseillerPage({
   params,
 }: {
@@ -33,7 +41,7 @@ export default async function ConseillerPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("first_name, last_name, bio, city, specialties, email, phone")
+    .select("first_name, last_name, bio, city, specialties, email, phone, photo_url")
     .eq("member_status", "actif")
     .not("roles", "cs", '{"partenaire"}')
     .not("email", "like", "%@roazhonkastell.test");
@@ -45,9 +53,9 @@ export default async function ConseillerPage({
   if (!member) notFound();
 
   const profile = lookupProfile(slug);
-  const photoUrl = profile?.photo
-    ? `${profile.photo}?format=auto&width=320`
-    : null;
+  const dbPhoto = member.photo_url as string | null;
+  const photoUrl = iadPhoto(dbPhoto)
+    || (profile?.photo ? `${profile.photo}?format=auto&width=320` : null);
   const city = (member.city as string | null) || profile?.city || null;
   const bio = member.bio as string | null;
   const email = member.email as string | null;

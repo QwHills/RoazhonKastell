@@ -43,3 +43,32 @@ export function buildIadMiniSiteUrl(firstName: string, lastName: string): string
 export function getInitials(firstName: string, lastName: string): string {
   return `${(firstName[0] || "").toUpperCase()}${(lastName[0] || "").toUpperCase()}`;
 }
+
+export async function scrapeIadProfilePhoto(
+  firstName: string,
+  lastName: string,
+): Promise<string | null> {
+  try {
+    const url = buildIadMiniSiteUrl(firstName, lastName);
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RoazhonKastell/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const ogMatch = html.match(
+      /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
+    );
+    if (!ogMatch?.[1]) return null;
+
+    let photoUrl = ogMatch[1].replace(/&amp;/g, "&");
+    photoUrl = photoUrl.replace(/\?.*$/, "");
+
+    if (!photoUrl.includes("images.iadfrance.fr/profile-picture/")) return null;
+    return `${photoUrl}?format=auto&width=320`;
+  } catch {
+    return null;
+  }
+}
