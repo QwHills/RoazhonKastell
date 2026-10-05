@@ -23,6 +23,7 @@ export default function Home() {
         <Hero />
         <DiscoverCards />
         <EventSection />
+        <ReussitesBanner />
         <ActualitesSection />
         <Videos />
         <Lieu />
@@ -236,6 +237,88 @@ function EventSection() {
             />
           </svg>
         </Link>
+      </div>
+    </section>
+  );
+}
+
+function ReussitesBanner() {
+  return (
+    <section className="py-6 sm:py-8 bg-white">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+        <div className="relative rounded-2xl overflow-hidden bg-zinc-900">
+          <Image
+            src="/chateau-drone.jpg"
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover opacity-30"
+          />
+          <div className="relative flex flex-col lg:flex-row items-center gap-6 lg:gap-8 p-6 sm:p-8 lg:p-10">
+            {/* Left – Text */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl sm:text-3xl lg:text-[34px] font-bold text-white leading-tight mb-3">
+                Et si un mardi rentabilisait votre adhésion&nbsp;?
+              </h2>
+              <p className="text-sm text-zinc-300 mb-5 max-w-md">
+                Un lieu, un réseau et des opportunités concrètes de collaboration.
+              </p>
+              <ul className="space-y-2.5 mb-5">
+                {[
+                  "Des rencontres chaque mardi",
+                  "Des projets construits ensemble",
+                  "Un réseau pour avancer",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-sm text-white">
+                    <svg className="w-5 h-5 text-emerald-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/reussites"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white text-sm font-semibold rounded-full hover:bg-white/20 transition-colors"
+              >
+                Découvrir les réussites
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Center – Price */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-8 py-6 text-center">
+                <p className="text-3xl sm:text-4xl font-bold text-white">19,99&nbsp;€ <span className="text-lg font-normal text-zinc-300">/ mois</span></p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-5 py-2 text-center">
+                <p className="text-sm font-semibold text-white">239,88&nbsp;€ / an</p>
+              </div>
+            </div>
+
+            {/* Right – ROI card */}
+            <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-lg max-w-xs w-full border border-zinc-100">
+              <div className="border border-emerald-200 rounded-xl px-4 py-3 mb-4 bg-emerald-50/50">
+                <p className="text-xs text-zinc-500 mb-0.5">Exemple illustratif</p>
+                <p className="text-2xl sm:text-3xl font-bold text-zinc-900">2&nbsp;760&nbsp;€</p>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                  Part calculée par conseiller pour 10&nbsp;000&nbsp;€ d&apos;honoraires
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-zinc-900">11,5&nbsp;×</p>
+                <p className="text-xs text-zinc-500 mt-0.5">la cotisation annuelle</p>
+              </div>
+              <div className="mt-3 pt-3 border-t border-zinc-100 text-center">
+                <p className="text-[10px] text-zinc-400">
+                  Selon les déductions indiquées,<br />hors autres charges éventuelles.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

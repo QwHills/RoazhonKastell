@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { WeeklyActionData, MeetSuggestionData, PartnerDiscoveryData, PartnerFicheAction } from "@/lib/dashboard-cards";
+import type { WeeklyActionData, MeetSuggestionData, PartnerDiscoveryData, PartnerFicheAction, SuccessesCardData } from "@/lib/dashboard-cards";
 
 // ============================================================
 // 1. Action de la semaine
@@ -591,5 +591,54 @@ export function PartnerFicheCard({ data }: { data: PartnerFicheAction }) {
         </svg>
       </Link>
     </div>
+  );
+}
+
+// ============================================================
+// 5. Réussites du réseau
+// ============================================================
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+
+export function SuccessesCard({ data }: { data: SuccessesCardData }) {
+  return (
+    <Link href="/espace/reussites" className="block bg-white border border-zinc-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+          <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.982.143 1.954.317 2.916.52A6.003 6.003 0 0116.27 9.728M18.75 4.236V4.5c0 2.108-.966 3.99-2.48 5.228m0 0a6.98 6.98 0 01-2.77.952m-4.998 0a6.98 6.98 0 01-2.77-.952" />
+          </svg>
+        </div>
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-widest text-amber-700">R&eacute;ussites du r&eacute;seau</span>
+        </div>
+      </div>
+
+      <div className="flex items-baseline gap-6 mb-4">
+        <div>
+          <p className="text-3xl font-bold text-zinc-900">{data.total}</p>
+          <p className="text-xs text-zinc-400">au total</p>
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-zinc-700">{data.thisQuarter}</p>
+          <p className="text-xs text-zinc-400">ce trimestre</p>
+        </div>
+      </div>
+
+      {data.podium.length > 0 && (
+        <div className="border-t border-zinc-100 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">Podium du trimestre</p>
+          <div className="flex flex-col gap-1">
+            {data.podium.map((p, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span>{MEDALS[i]}</span>
+                <span className="font-medium text-zinc-700">{p.name}</span>
+                <span className="text-zinc-400 ml-auto">{p.count} r&eacute;ussite{p.count > 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Link>
   );
 }

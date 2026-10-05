@@ -575,3 +575,61 @@ export async function getPartnerFicheAction(
 
   return null;
 }
+
+// ============================================================
+// 5. Réussites du réseau
+// ============================================================
+
+export interface SuccessesCardData {
+  total: number;
+  thisQuarter: number;
+  podium: { name: string; count: number }[];
+}
+
+export async function getSuccessesCard(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<SuccessesCardData | null> {
+  const now = new Date();
+  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+  const quarterStr = qStart.toISOString().split("T")[0];
+
+  const [{ data: allPub }, { data: qPub }] = await Promise.all([
+    supabase
+      .from("successes")
+      .select("id")
+      .eq("status", "publie"),
+    supabase
+      .from("successes")
+      .select("declared_by")
+      .eq("status", "publie")
+      .gte("created_at", quarterStr),
+  ]);
+
+  const total = allPub?.length ?? 0;
+  const thisQuarter = qPub?.length ?? 0;
+
+  const countByUser = new Map<string, number>();
+  for (const s of qPub || []) {
+    countByUser.set(s.declared_by, (countByUser.get(s.declared_by) || 0) + 1);
+  }
+
+  const sorted = [...countByUser.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  let podium: { name: string; count: number }[] = [];
+  if (sorted.length > 0) {
+    const ids = sorted.map((s) => s[0]);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name")
+      .in("id", ids);
+
+    const nameMap = new Map((profiles || []).map((p) => [p.id, p.first_name]));
+    podium = sorted.map(([id, count]) => ({
+      name: nameMap.get(id) || "?",
+      count,
+    }));
+  }
+
+  return { total, thisQuarter, podium };
+}

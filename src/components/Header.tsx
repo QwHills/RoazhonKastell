@@ -13,6 +13,7 @@ const navLinks = [
   { label: "Partenaires", href: "/partenaires" },
   { label: "Agenda", href: "/agenda" },
   { label: "Actualités", href: "/actualites" },
+  { label: "Réussites", href: "/reussites" },
   { label: "Vidéos", href: "/#videos" },
 ];
 

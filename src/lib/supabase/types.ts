@@ -349,6 +349,59 @@ export interface TuesdaySessionProperty {
   created_at: string;
 }
 
+// Réussites
+export type SuccessType = "vente_partage" | "dossier_partenaire" | "coup_de_pouce";
+export type SuccessOrigin = "mardi_presentation" | "mardi_recherche" | "mardi_conseil" | "rencontre_chateau" | "autre";
+export type SuccessStage = "en_cours" | "compromis" | "vente_definitive" | "finalise" | "annule";
+export type SuccessStatus = "brouillon" | "soumis" | "confirme" | "publie" | "refuse" | "retire";
+export type ParticipantRole = "declarant" | "binome" | "partenaire" | "contributeur";
+export type ConfirmationStatus = "en_attente" | "confirme" | "correction_demandee" | "refuse";
+
+export interface Success {
+  id: string;
+  type: SuccessType;
+  title: string;
+  story: string | null;
+  origin: SuccessOrigin;
+  property_id: string | null;
+  stage: SuccessStage;
+  stage_date: string | null;
+  photo_url: string | null;
+  status: SuccessStatus;
+  featured: boolean;
+  admin_note: string | null;
+  declared_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SuccessParticipant {
+  id: string;
+  success_id: string;
+  user_id: string | null;
+  partner_id: string | null;
+  role: ParticipantRole;
+  confirmation_status: ConfirmationStatus;
+  confirmation_note: string | null;
+  publish_consent: boolean;
+  anonymized_consent: boolean;
+  confirmed_at: string | null;
+  created_at: string;
+}
+
+export interface SuccessFinancial {
+  id: string;
+  success_id: string;
+  user_id: string;
+  total_fees: number | null;
+  share_percent: number;
+  calculated_amount: number | null;
+  actual_amount: number | null;
+  encashment_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type AtelierActionStatus = "brouillon" | "valide" | "archive";
 export type UserActionStatus = "a_faire" | "realisee" | "declinee";
 export type MeetSuggestionStatus = "proposee" | "acceptee" | "echangee" | "declinee";
@@ -439,6 +492,9 @@ export interface Database {
       meet_suggestions: { Row: MeetSuggestion; Insert: Partial<MeetSuggestion> & { event_id: string; user_id: string; suggested_user_id: string }; Update: Partial<MeetSuggestion>; Relationships: [] };
       known_contacts: { Row: KnownContact; Insert: { user_id: string; known_user_id: string; source?: string; event_id?: string }; Update: never; Relationships: [] };
       partner_discoveries: { Row: PartnerDiscovery; Insert: Partial<PartnerDiscovery> & { user_id: string; partner_id: string; period_start: string }; Update: Partial<PartnerDiscovery>; Relationships: [] };
+      successes: { Row: Success; Insert: Partial<Success> & { type: SuccessType; title: string; declared_by: string }; Update: Partial<Success>; Relationships: [] };
+      success_participants: { Row: SuccessParticipant; Insert: Partial<SuccessParticipant> & { success_id: string }; Update: Partial<SuccessParticipant>; Relationships: [] };
+      success_financials: { Row: SuccessFinancial; Insert: Partial<SuccessFinancial> & { success_id: string; user_id: string }; Update: Partial<SuccessFinancial>; Relationships: [] };
     };
     Views: {};
     Functions: {};
@@ -454,6 +510,12 @@ export interface Database {
       idea_status: IdeaStatus;
       article_status: ArticleStatus;
       payment_status: PaymentStatus;
+      success_type: SuccessType;
+      success_origin: SuccessOrigin;
+      success_stage: SuccessStage;
+      success_status: SuccessStatus;
+      participant_role: ParticipantRole;
+      confirmation_status: ConfirmationStatus;
     };
     CompositeTypes: {};
   };

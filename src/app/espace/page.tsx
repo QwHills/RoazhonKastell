@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
 import ParticipeButton from "./ParticipeButton";
 import AtelierParticipeButton from "./AtelierParticipeButton";
-import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction } from "@/lib/dashboard-cards";
-import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard } from "./DashboardCards";
+import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction, getSuccessesCard } from "@/lib/dashboard-cards";
+import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard, SuccessesCard } from "./DashboardCards";
 import ReunionDashboardCard from "./ReunionDashboardCard";
 import OnboardingStatsCard from "./OnboardingStatsCard";
 
@@ -211,11 +211,12 @@ export default async function EspacePage() {
     }
   }
 
-  const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction] = await Promise.all([
+  const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction, successesCard] = await Promise.all([
     !isPartner ? getWeeklyAction(supabase, profile.id) : Promise.resolve(null),
     !isPartner && nextEvent ? getMeetSuggestion(supabase, profile.id, nextEvent.id) : Promise.resolve(null),
     !isPartner ? getPartnerDiscovery(supabase, profile.id) : Promise.resolve(null),
     isPartner ? getPartnerFicheAction(supabase, profile.id) : Promise.resolve(null),
+    !isPartner ? getSuccessesCard(supabase, profile.id) : Promise.resolve(null),
   ]);
 
   const hasCards = !!(weeklyAction || meetSuggestion || partnerDiscovery);
@@ -427,6 +428,13 @@ export default async function EspacePage() {
       {partnerFicheAction && (
         <div className="mb-8">
           <PartnerFicheCard data={partnerFicheAction} />
+        </div>
+      )}
+
+      {/* Successes card */}
+      {successesCard && (
+        <div className="mb-8">
+          <SuccessesCard data={successesCard} />
         </div>
       )}
 
