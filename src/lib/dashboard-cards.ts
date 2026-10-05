@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { getAdminClient } from "@/lib/mardi";
 
 // ============================================================
 // Helpers
@@ -587,19 +588,20 @@ export interface SuccessesCardData {
 }
 
 export async function getSuccessesCard(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   userId: string,
 ): Promise<SuccessesCardData | null> {
+  const admin = getAdminClient();
   const now = new Date();
   const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
   const quarterStr = qStart.toISOString().split("T")[0];
 
   const [{ data: allPub }, { data: qPub }] = await Promise.all([
-    supabase
+    admin
       .from("successes")
       .select("id")
       .eq("status", "publie"),
-    supabase
+    admin
       .from("successes")
       .select("declared_by")
       .eq("status", "publie")
@@ -619,7 +621,7 @@ export async function getSuccessesCard(
   let podium: { name: string; count: number }[] = [];
   if (sorted.length > 0) {
     const ids = sorted.map((s) => s[0]);
-    const { data: profiles } = await supabase
+    const { data: profiles } = await admin
       .from("profiles")
       .select("id, first_name")
       .in("id", ids);
