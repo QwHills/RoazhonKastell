@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, canManageEvents } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient, getNextTuesdayDate } from "@/lib/mardi";
 import EvenementsGestion from "./EvenementsGestion";
 
 export default async function EvenementsPage() {
@@ -25,15 +26,25 @@ export default async function EvenementsPage() {
       const isPresentation = (e.title as string).toLowerCase().includes("présentation");
       let participantProperties: Record<string, number> = {};
       if (isPresentation && userIds.length > 0) {
-        const { data: props } = await supabase
-          .from("shared_properties")
-          .select("owner_id")
-          .in("owner_id", userIds)
-          .eq("status", "disponible");
+        const admin = getAdminClient();
+        const nextTuesday = getNextTuesdayDate();
+        const { data: session } = await admin
+          .from("tuesday_sessions")
+          .select("id")
+          .eq("session_date", nextTuesday)
+          .single();
 
-        if (props) {
-          for (const p of props) {
-            participantProperties[p.owner_id] = (participantProperties[p.owner_id] || 0) + 1;
+        if (session) {
+          const { data: tsp } = await admin
+            .from("tuesday_session_properties")
+            .select("owner_id")
+            .eq("session_id", session.id)
+            .in("owner_id", userIds);
+
+          if (tsp) {
+            for (const p of tsp) {
+              participantProperties[p.owner_id] = (participantProperties[p.owner_id] || 0) + 1;
+            }
           }
         }
       }
