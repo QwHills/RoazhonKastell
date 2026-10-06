@@ -64,7 +64,13 @@ function InscriptionForm() {
       if (ribFile) data.append("rib", ribFile);
 
       const res = await fetch("/api/inscription", { method: "POST", body: data });
-      const json = await res.json();
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        setError("Le serveur a rencontré une erreur. Réessayez dans quelques instants.");
+        return;
+      }
 
       if (!res.ok) {
         setError(json.error || "Une erreur est survenue.");
