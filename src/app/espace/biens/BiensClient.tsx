@@ -99,6 +99,10 @@ export default function BiensClient({
   const addressLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [tab, setTab] = useState<"mine" | "network">("mine");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterMinArea, setFilterMinArea] = useState("");
+  const [filterBedrooms, setFilterBedrooms] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<{ nom: string; codesPostaux: string[] }[]>([]);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const cityLookupTimer = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -753,17 +757,85 @@ export default function BiensClient({
         </button>
       </div>
 
-      {tab === "network" && (
-        <div className="space-y-3">
-          {othersProperties.length === 0 ? (
-            <p className="text-center text-zinc-400 py-12">Aucun bien partagé pour le moment.</p>
-          ) : (
-            othersProperties.map((p) => (
-              <PropertyCard key={p.id} property={p} showOwner onDelete={isAdmin ? () => deleteProperty(p.id) : undefined} />
-            ))
-          )}
-        </div>
-      )}
+      {tab === "network" && (() => {
+        const networkCities = [...new Set(othersProperties.map((p) => p.city).filter(Boolean) as string[])].sort();
+        const networkTypes = [...new Set(othersProperties.map((p) => p.property_type).filter(Boolean) as string[])].sort();
+        const typeLabels: Record<string, string> = {
+          appartement: "Appartement", maison: "Maison", terrain: "Terrain",
+          local_commercial: "Local commercial", immeuble: "Immeuble", autre: "Autre",
+        };
+        const filtered = othersProperties.filter((p) => {
+          if (filterCity && p.city !== filterCity) return false;
+          if (filterType && p.property_type !== filterType) return false;
+          if (filterMinArea && (p.living_area == null || p.living_area < parseInt(filterMinArea))) return false;
+          if (filterBedrooms && (p.bedrooms == null || p.bedrooms < parseInt(filterBedrooms))) return false;
+          return true;
+        });
+        const hasFilters = !!(filterCity || filterType || filterMinArea || filterBedrooms);
+
+        return (
+          <div>
+            <div className="flex flex-wrap gap-3 mb-4">
+              <select
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              >
+                <option value="">Toutes les villes</option>
+                {networkCities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              >
+                <option value="">Tous les types</option>
+                {networkTypes.map((t) => (
+                  <option key={t} value={t}>{typeLabels[t] || t}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={filterMinArea}
+                onChange={(e) => setFilterMinArea(e.target.value)}
+                placeholder="Surface min (m²)"
+                className="w-40 px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+              <input
+                type="number"
+                value={filterBedrooms}
+                onChange={(e) => setFilterBedrooms(e.target.value)}
+                placeholder="Chambres min"
+                className="w-36 px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+              {hasFilters && (
+                <button
+                  onClick={() => { setFilterCity(""); setFilterType(""); setFilterMinArea(""); setFilterBedrooms(""); }}
+                  className="px-3 py-2 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+                >
+                  Effacer les filtres
+                </button>
+              )}
+            </div>
+            {hasFilters && (
+              <p className="text-xs text-zinc-400 mb-3">{filtered.length} bien{filtered.length > 1 ? "s" : ""} sur {othersProperties.length}</p>
+            )}
+            <div className="space-y-3">
+              {filtered.length === 0 ? (
+                <p className="text-center text-zinc-400 py-12">
+                  {othersProperties.length === 0 ? "Aucun bien partagé pour le moment." : "Aucun bien ne correspond à vos filtres."}
+                </p>
+              ) : (
+                filtered.map((p) => (
+                  <PropertyCard key={p.id} property={p} showOwner onDelete={isAdmin ? () => deleteProperty(p.id) : undefined} />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === "mine" && (
         <div className="space-y-3">
