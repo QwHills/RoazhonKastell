@@ -86,17 +86,34 @@ function parseJsonLd(html: string, data: Record<string, unknown>) {
     const jsonStr = block.replace(/<\/?script[^>]*>/gi, "").trim();
     try {
       const ld = JSON.parse(jsonStr);
-      if (ld["@type"] === "Product" || ld["@type"] === "RealEstateListing" || ld["@type"] === "Residence") {
-        if (ld.offers?.price) data.price = parseInt(ld.offers.price);
-        if (ld.name) data.title = ld.name;
-        if (ld.description) data.description = cleanText(ld.description);
-      }
-      if (ld["@type"] === "SingleFamilyResidence" || ld["@type"] === "Apartment") {
-        if (ld.floorSize?.value) data.living_area = parseInt(ld.floorSize.value);
-        if (ld.numberOfRooms) data.rooms = parseInt(ld.numberOfRooms);
-        if (ld.numberOfBedrooms) data.bedrooms = parseInt(ld.numberOfBedrooms);
-        if (ld.address?.addressLocality) data.city = ld.address.addressLocality;
-        if (ld.address?.postalCode) data.postal_code = ld.address.postalCode;
+      const items: Record<string, unknown>[] = [];
+      if (ld["@graph"]) items.push(...ld["@graph"]);
+      else items.push(ld);
+
+      for (const item of items) {
+        const type = item["@type"] as string;
+        if (type === "Product" || type === "RealEstateListing" || type === "Residence") {
+          const offers = item.offers as Record<string, unknown> | undefined;
+          if (offers?.price) data.price = parseInt(String(offers.price).replace(/[^\d]/g, ""));
+          if (item.name) data.title = item.name;
+          if (item.description) data.description = cleanText(item.description as string);
+        }
+        if (type === "SingleFamilyResidence" || type === "Apartment" || type === "House") {
+          const floor = item.floorSize as Record<string, unknown> | undefined;
+          if (floor?.value) data.living_area = parseInt(String(floor.value));
+          if (item.numberOfRooms) data.rooms = parseInt(String(item.numberOfRooms));
+          if (item.numberOfBedrooms) data.bedrooms = parseInt(String(item.numberOfBedrooms));
+          const addr = item.address as Record<string, unknown> | undefined;
+          if (addr?.addressLocality) data.city = addr.addressLocality;
+          if (addr?.postalCode) data.postal_code = addr.postalCode;
+          if (item.name) data.title = item.name;
+          if (item.description) data.description = cleanText(item.description as string);
+        }
+        if (type === "Offer") {
+          if (item.price && !data.price) {
+            data.price = parseInt(String(item.price).replace(/[^\d]/g, ""));
+          }
+        }
       }
     } catch {
       // Invalid JSON
