@@ -320,6 +320,19 @@ export default function PresentationMode({ session: initialSession, properties: 
                       {prop.address}
                     </p>
                   )}
+                  {prop.iad_url && (
+                    <a
+                      href={prop.iad_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 mb-3 transition-colors"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                      Voir l&apos;annonce sur IAD
+                    </a>
+                  )}
                   <div className="flex flex-wrap gap-6 text-lg text-zinc-600">
                     {prop.living_area != null && (
                       <span className="flex items-center gap-2 font-semibold">
