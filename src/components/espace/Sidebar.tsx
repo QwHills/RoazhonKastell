@@ -51,12 +51,17 @@ function getNavGroups(profile: Profile): NavGroup[] {
       ],
     });
   } else {
+    const reseauItems: NavItem[] = [
+      { label: "Agenda", href: "/espace/agenda", icon: <CalendarIcon /> },
+    ];
+    if (roles.includes("partenaire")) {
+      reseauItems.push({ label: "Les réussites", href: "/espace/reussites", icon: <TrophyIcon /> });
+      reseauItems.push({ label: "Boîte à idées", href: "/espace/idees", icon: <LightbulbIcon /> });
+    }
+    reseauItems.push({ label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> });
     groups.push({
       label: "Réseau",
-      items: [
-        { label: "Agenda", href: "/espace/agenda", icon: <CalendarIcon /> },
-        { label: "Ressources", href: "/espace/ressources", icon: <FolderIcon /> },
-      ],
+      items: reseauItems,
     });
   }
 

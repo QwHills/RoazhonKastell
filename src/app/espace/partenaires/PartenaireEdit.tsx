@@ -328,7 +328,7 @@ export default function PartenaireEdit({
     setMessage(null);
 
     const newStatus = andSubmit
-      ? "soumis"
+      ? "valide"
       : partner.status === "refuse"
         ? "brouillon"
         : partner.status;
@@ -352,7 +352,7 @@ export default function PartenaireEdit({
         setPartner((p) => ({ ...p, status: newStatus as Partner["status"], slug: data.slug || p.slug }));
         setMessage({
           type: "success",
-          text: andSubmit ? "Fiche soumise pour validation !" : "Modifications enregistrées.",
+          text: andSubmit ? "Fiche publiée !" : "Modifications enregistrées.",
         });
       }
     } catch {
@@ -972,7 +972,7 @@ export default function PartenaireEdit({
                 disabled={saving || submitting || !partner.name.trim()}
                 className="flex-1 px-5 py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
               >
-                {submitting ? "Envoi…" : "Soumettre pour validation"}
+                {submitting ? "Publication…" : "Publier la fiche"}
               </button>
             </div>
           )}

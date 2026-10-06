@@ -7,8 +7,20 @@ export async function GET(request: Request) {
   if (!profile) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
   const url = new URL(request.url);
-  const dateParam = url.searchParams.get("date") || getNextTuesdayDate();
   const admin = getAdminClient();
+
+  if (url.searchParams.get("list") === "past") {
+    const today = getNextTuesdayDate();
+    const { data } = await admin
+      .from("tuesday_sessions")
+      .select("id, session_date, status")
+      .lt("session_date", today)
+      .order("session_date", { ascending: false })
+      .limit(10);
+    return NextResponse.json({ sessions: data || [] });
+  }
+
+  const dateParam = url.searchParams.get("date") || getNextTuesdayDate();
 
   let { data: session } = await admin
     .from("tuesday_sessions")

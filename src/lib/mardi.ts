@@ -19,7 +19,17 @@ export function getNextTuesdayDate(): string {
   const parisStr = fmt.format(now);
   const d = new Date(parisStr + "T12:00:00");
   const day = d.getDay();
-  const diff = day <= 2 ? 2 - day : 9 - day;
+  let diff = day <= 2 ? 2 - day : 9 - day;
+  if (diff === 0) {
+    const timeFmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Paris",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const [h] = timeFmt.format(now).split(":").map(Number);
+    if (h >= 12) diff = 7;
+  }
   d.setDate(d.getDate() + diff);
   return d.toISOString().split("T")[0];
 }

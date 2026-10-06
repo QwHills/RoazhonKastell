@@ -6,7 +6,7 @@ import IdeesClient from "./IdeesClient";
 export default async function IdeesPage() {
   const profile = await getCurrentUser();
   if (!profile) redirect("/?login=1");
-  if (!hasAnyRole(profile, ["adherent", "admin"])) redirect("/espace");
+  if (!hasAnyRole(profile, ["adherent", "admin", "partenaire"])) redirect("/espace");
 
   const supabase = await createClient();
 

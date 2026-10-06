@@ -6,7 +6,7 @@ import ReussitesClient from "./ReussitesClient";
 export default async function ReussitesPage() {
   const profile = await getCurrentUser();
   if (!profile) redirect("/?login=1");
-  if (!hasAnyRole(profile, ["adherent", "admin"])) redirect("/espace");
+  if (!hasAnyRole(profile, ["adherent", "admin", "partenaire"])) redirect("/espace");
 
   const supabase = getAdminClient();
 

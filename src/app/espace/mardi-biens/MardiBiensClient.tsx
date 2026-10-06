@@ -81,9 +81,13 @@ export default function MardiBiensClient() {
   const [acting, setActing] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [pastSessions, setPastSessions] = useState<{id: string; session_date: string; status: string}[]>([]);
+  const [viewingDate, setViewingDate] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  const fetchSession = useCallback(async () => {
-    const res = await fetch("/api/mardi/session");
+  const fetchSession = useCallback(async (date?: string) => {
+    const params = date ? `?date=${date}` : "";
+    const res = await fetch(`/api/mardi/session${params}`);
     if (res.ok) {
       const data = await res.json();
       setSession(data.session);
@@ -92,7 +96,15 @@ export default function MardiBiensClient() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchSession(); }, [fetchSession]);
+  const fetchPastSessions = useCallback(async () => {
+    const res = await fetch("/api/mardi/session?list=past");
+    if (res.ok) {
+      const data = await res.json();
+      setPastSessions(data.sessions || []);
+    }
+  }, []);
+
+  useEffect(() => { fetchSession(); fetchPastSessions(); }, [fetchSession, fetchPastSessions]);
 
   async function startSession() {
     if (!session || acting) return;
@@ -177,6 +189,18 @@ export default function MardiBiensClient() {
 
   return (
     <div>
+      {viewingDate && (
+        <button
+          onClick={() => { setViewingDate(null); fetchSession(); }}
+          className="flex items-center gap-1.5 mb-4 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          Retour à la séance actuelle
+        </button>
+      )}
+
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-zinc-900">Les biens du mardi</h1>
         <p className="text-sm text-zinc-500 mt-1 capitalize">{formatDate(session.session_date)}</p>
@@ -210,7 +234,7 @@ export default function MardiBiensClient() {
         </div>
       ) : (
         <>
-          <div className="flex gap-3 mb-6">
+          {!viewingDate && <div className="flex gap-3 mb-6">
             {session.status === "preparation" && (
               <>
                 <button
@@ -277,7 +301,7 @@ export default function MardiBiensClient() {
                 </button>
               </>
             )}
-          </div>
+          </div>}
 
           <div className="space-y-3">
             {properties.map((sp) => {
@@ -357,6 +381,42 @@ export default function MardiBiensClient() {
             </div>
           )}
         </>
+      )}
+
+      {!viewingDate && pastSessions.length > 0 && (
+        <div className="mt-8 border-t border-zinc-200 pt-6">
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className="flex items-center gap-2 text-sm font-semibold text-zinc-700 hover:text-zinc-900 transition-colors"
+          >
+            <svg className={`w-4 h-4 transition-transform ${historyOpen ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+            Historique des sessions
+          </button>
+          {historyOpen && (
+            <div className="mt-3 space-y-2">
+              {pastSessions.map((ps) => (
+                <button
+                  key={ps.id}
+                  onClick={() => { setViewingDate(ps.session_date); fetchSession(ps.session_date); }}
+                  className="w-full flex items-center justify-between p-3 bg-white border border-zinc-200 rounded-xl text-left hover:bg-zinc-50 transition-colors"
+                >
+                  <span className="text-sm text-zinc-700 capitalize">{formatDate(ps.session_date)}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    ps.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                    ps.status === "active" ? "bg-blue-100 text-blue-700" :
+                    "bg-zinc-100 text-zinc-600"
+                  }`}>
+                    {ps.status === "completed" ? "Terminée" :
+                     ps.status === "active" ? "En cours" :
+                     "En préparation"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
