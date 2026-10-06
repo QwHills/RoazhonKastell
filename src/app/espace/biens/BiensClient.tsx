@@ -247,22 +247,22 @@ export default function BiensClient({
 
     const supabase = createClient();
 
-    let photoUrl: string | null = null;
-    if (photos.length > 0) {
-      const file = photos[0];
+    const uploadedPhotoUrls: string[] = [];
+    for (const file of photos) {
       const ext = file.name.split(".").pop();
-      const path = `properties/${userId}/${Date.now()}.${ext}`;
+      const path = `properties/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("photos")
         .upload(path, file, { upsert: true });
 
       if (!uploadError) {
         const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
-        photoUrl = urlData.publicUrl;
+        uploadedPhotoUrls.push(urlData.publicUrl);
       }
     }
 
-    const effectivePhotoUrl = photoUrl || scrapedPhotoUrl || null;
+    const allPhotos = uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : scrapedPhotos;
+    const effectivePhotoUrl = uploadedPhotoUrls[0] || scrapedPhotoUrl || null;
 
     const payload = {
       iad_url: form.iad_url || null,
@@ -282,7 +282,7 @@ export default function BiensClient({
       address: form.address || null,
       latitude: addressCoords?.lat ?? null,
       longitude: addressCoords?.lng ?? null,
-      ...(scrapedPhotos.length > 0 ? { photos: scrapedPhotos } : {}),
+      ...(allPhotos.length > 0 ? { photos: allPhotos } : {}),
       ...(effectivePhotoUrl ? { photo_url: effectivePhotoUrl } : {}),
     };
 
@@ -868,77 +868,165 @@ function DpeBadge({ letter, type }: { letter: string; type: "energy" | "ges" }) 
 }
 
 function PropertyCard({ property: p, showOwner, onDelete }: { property: Property; showOwner?: boolean; onDelete?: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [photoIdx, setPhotoIdx] = useState(0);
   const owner = p.profiles;
   const isOffMarket = !p.iad_url;
+  const allPhotos = p.photos?.length > 0 ? p.photos : p.photo_url ? [p.photo_url] : [];
 
   return (
     <div className={showOwner ? "bg-white border border-zinc-200 rounded-2xl p-5" : ""}>
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        {p.photo_url && (
-          <img
-            src={p.photo_url}
-            alt={`${p.property_type || "Bien"} ${p.city || ""}`}
-            className="w-full sm:w-28 h-28 rounded-xl object-cover flex-shrink-0"
-          />
-        )}
-        <div className="flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-semibold text-zinc-900">
-                {p.property_type === "appartement" ? "Appt" : p.property_type === "maison" ? "Maison" : p.property_type || "Bien"}
-                {p.rooms ? ` ${p.rooms}p` : ""}
-              </span>
-              {p.price && (
-                <span className="font-semibold text-zinc-900">{formatPrice(p.price)}</span>
-              )}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status]}`}>
-                {STATUS_LABELS[p.status]}
-              </span>
-              {isOffMarket && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
-                  Off-market
+      <button
+        type="button"
+        onClick={() => { if (showOwner) { setExpanded(!expanded); setPhotoIdx(0); } }}
+        className={`w-full text-left ${showOwner ? "cursor-pointer" : ""}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          {p.photo_url && (
+            <img
+              src={p.photo_url}
+              alt={`${p.property_type || "Bien"} ${p.city || ""}`}
+              className="w-full sm:w-28 h-28 rounded-xl object-cover flex-shrink-0"
+            />
+          )}
+          <div className="flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="font-semibold text-zinc-900">
+                  {p.property_type === "appartement" ? "Appt" : p.property_type === "maison" ? "Maison" : p.property_type || "Bien"}
+                  {p.rooms ? ` ${p.rooms}p` : ""}
                 </span>
+                {p.price && (
+                  <span className="font-semibold text-zinc-900">{formatPrice(p.price)}</span>
+                )}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status]}`}>
+                  {STATUS_LABELS[p.status]}
+                </span>
+                {isOffMarket && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                    Off-market
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-zinc-500">
+                {[p.city, p.postal_code].filter(Boolean).join(" ")}
+                {p.living_area ? ` · ${p.living_area} m²` : ""}
+                {p.bedrooms ? ` · ${p.bedrooms} ch.` : ""}
+                {p.dpe_energy_class ? ` · DPE ${p.dpe_energy_class}` : ""}
+              </p>
+              {p.address && (
+                <p className="text-xs text-zinc-400 mt-1">{p.address}</p>
+              )}
+              {showOwner && owner && (
+                <p className="text-xs text-zinc-400 mt-1">
+                  Partagé par {owner.first_name} {owner.last_name}
+                </p>
               )}
             </div>
-            <p className="text-sm text-zinc-500">
-              {[p.city, p.postal_code].filter(Boolean).join(" ")}
-              {p.living_area ? ` · ${p.living_area} m²` : ""}
-              {p.bedrooms ? ` · ${p.bedrooms} ch.` : ""}
-              {p.dpe_energy_class ? ` · DPE ${p.dpe_energy_class}` : ""}
-            </p>
-            {p.description && (
-              <p className="text-sm text-zinc-600 mt-2">{p.description}</p>
-            )}
-            {showOwner && owner && (
-              <p className="text-xs text-zinc-400 mt-2">
-                Partagé par {owner.first_name} {owner.last_name}
-              </p>
+            {showOwner && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <svg className={`w-4 h-4 text-zinc-400 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </div>
             )}
           </div>
-          {showOwner && (
-            <div className="flex flex-col gap-2 flex-shrink-0">
-              {p.iad_url && (
-                <a
-                  href={p.iad_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 text-center"
-                >
-                  Voir l&apos;annonce
-                </a>
-              )}
-              {onDelete && (
-                <button
-                  onClick={onDelete}
-                  className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-xs font-medium"
-                >
-                  Supprimer
-                </button>
+        </div>
+      </button>
+
+      {expanded && showOwner && (
+        <div className="mt-4 pt-4 border-t border-zinc-100 space-y-4">
+          {allPhotos.length > 0 && (
+            <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden bg-zinc-100">
+              <img src={allPhotos[photoIdx]} alt="" className="w-full h-full object-cover" />
+              {allPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPhotoIdx((i) => (i - 1 + allPhotos.length) % allPhotos.length); }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPhotoIdx((i) => (i + 1) % allPhotos.length); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-black/50 text-white text-xs rounded-full">
+                    {photoIdx + 1} / {allPhotos.length}
+                  </div>
+                </>
               )}
             </div>
           )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {p.living_area != null && (
+              <div className="px-3 py-2 bg-zinc-50 rounded-lg">
+                <p className="text-[10px] text-zinc-400 uppercase font-medium">Surface</p>
+                <p className="text-sm font-semibold text-zinc-900">{p.living_area} m²</p>
+              </div>
+            )}
+            {p.rooms != null && (
+              <div className="px-3 py-2 bg-zinc-50 rounded-lg">
+                <p className="text-[10px] text-zinc-400 uppercase font-medium">Pièces</p>
+                <p className="text-sm font-semibold text-zinc-900">{p.rooms}</p>
+              </div>
+            )}
+            {p.bedrooms != null && (
+              <div className="px-3 py-2 bg-zinc-50 rounded-lg">
+                <p className="text-[10px] text-zinc-400 uppercase font-medium">Chambres</p>
+                <p className="text-sm font-semibold text-zinc-900">{p.bedrooms}</p>
+              </div>
+            )}
+            {p.dpe_energy_class && (
+              <div className="px-3 py-2 bg-zinc-50 rounded-lg">
+                <p className="text-[10px] text-zinc-400 uppercase font-medium">DPE</p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${DPE_COLORS[p.dpe_energy_class] || "bg-zinc-200 text-zinc-700"}`}>
+                    {p.dpe_energy_class}
+                  </span>
+                  {p.dpe_energy_value && <span className="text-xs text-zinc-500">{p.dpe_energy_value} kWh</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {p.description && (
+            <p className="text-sm text-zinc-600">{p.description}</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {p.iad_url && (
+              <a
+                href={p.iad_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Voir l&apos;annonce IAD
+              </a>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-xs font-medium"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
