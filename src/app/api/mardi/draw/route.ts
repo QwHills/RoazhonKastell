@@ -111,7 +111,7 @@ export async function POST(request: Request) {
   // Return the full property data
   const { data: fullProp } = await admin
     .from("tuesday_session_properties")
-    .select("*, shared_properties:property_id(id, iad_url, transaction_type, property_type, city, postal_code, price, living_area, land_area, rooms, bedrooms, description, photo_url), profiles:owner_id(id, first_name, last_name, email, photo_url)")
+    .select("*, shared_properties:property_id(id, iad_url, transaction_type, property_type, city, postal_code, price, living_area, land_area, rooms, bedrooms, description, photo_url, photos, dpe_energy_class, dpe_energy_value, dpe_ges_class, dpe_ges_value, address, latitude, longitude, status), profiles:owner_id(id, first_name, last_name, email, photo_url)")
     .eq("id", picked.id)
     .single();
 

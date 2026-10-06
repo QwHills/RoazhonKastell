@@ -308,6 +308,9 @@ export default function MardiBiensClient() {
                       {prop.rooms ? ` · ${prop.rooms}p` : ""}
                       {prop.living_area ? ` · ${prop.living_area} m²` : ""}
                     </p>
+                    {prop.address && (
+                      <p className="text-xs text-zinc-400 truncate">{prop.address}</p>
+                    )}
                     {prop.price != null && (
                       <p className="text-sm font-semibold text-zinc-700">{prop.price.toLocaleString("fr-FR")} €</p>
                     )}
