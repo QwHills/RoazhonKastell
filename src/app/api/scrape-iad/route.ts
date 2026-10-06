@@ -137,36 +137,20 @@ function parseOpenGraph(html: string, data: Record<string, unknown>) {
 
 function parsePhotos(html: string, data: Record<string, unknown>) {
   const seen = new Set<string>();
-  let mainDatePath = "";
 
   // 1. Find main carousel photos — width=1560 appears in srcset for the gallery
   const srcsetRegex = /images\.iadfrance\.fr\/property\/broadcast\/(\d{4}\/\d{2}\/\d{2})\/([a-f0-9]+\.(?:png|jpg|jpeg|webp))\?[^"'\s]*width=1560/g;
   let m;
   while ((m = srcsetRegex.exec(html)) !== null) {
-    if (!mainDatePath) mainDatePath = m[1];
     const base = `https://images.iadfrance.fr/property/broadcast/${m[1]}/${m[2]}`;
     seen.add(base);
   }
 
   // 2. Fallback: if no width=1560 found, use width=1200 (og:image)
-  if (!mainDatePath) {
+  if (seen.size === 0) {
     const ogRegex = /images\.iadfrance\.fr\/property\/broadcast\/(\d{4}\/\d{2}\/\d{2})\/([a-f0-9]+\.(?:png|jpg|jpeg|webp))\?[^"'\s]*width=1200/g;
     while ((m = ogRegex.exec(html)) !== null) {
-      if (!mainDatePath) mainDatePath = m[1];
       const base = `https://images.iadfrance.fr/property/broadcast/${m[1]}/${m[2]}`;
-      seen.add(base);
-    }
-  }
-
-  // 3. From Nuxt data, extract all property photos that share the same upload date
-  if (mainDatePath) {
-    const dp = mainDatePath.replace(/\//g, "\\\\u002F");
-    const escapedRegex = new RegExp(
-      `images\\.playiad\\.com\\\\u002Fproperty\\\\u002Fbroadcast\\\\u002F${dp}\\\\u002F([a-f0-9]+\\.(?:png|jpg|jpeg|webp))`,
-      "g",
-    );
-    while ((m = escapedRegex.exec(html)) !== null) {
-      const base = `https://images.iadfrance.fr/property/broadcast/${mainDatePath}/${m[1]}`;
       seen.add(base);
     }
   }
