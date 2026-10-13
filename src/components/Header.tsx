@@ -15,6 +15,7 @@ const navLinks = [
   { label: "Actualités", href: "/actualites" },
   { label: "Réussites", href: "/reussites" },
   { label: "Vidéos", href: "/#videos" },
+  { label: "Location", href: "/location" },
 ];
 
 export default function Header() {
@@ -70,13 +71,13 @@ export default function Header() {
             </Link>
 
             {/* Desktop nav */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-0">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={link.href.includes("#") ? (e) => scrollToHash(e, link.href) : undefined}
-                  className="px-4 py-2 text-[14px] font-medium text-zinc-700 hover:text-zinc-900 transition-colors rounded-lg"
+                  className="px-3 py-2 text-[13px] font-medium text-zinc-700 hover:text-zinc-900 transition-colors rounded-lg whitespace-nowrap"
                 >
                   {link.label}
                 </Link>
@@ -84,11 +85,11 @@ export default function Header() {
             </nav>
 
             {/* Right actions */}
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
               {isLoggedIn ? (
                 <Link
                   href="/espace"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold text-zinc-800 bg-white/80 border border-zinc-300 rounded-full hover:bg-white transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-zinc-800 bg-white/80 border border-zinc-300 rounded-full hover:bg-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -98,7 +99,7 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => setLoginOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold text-zinc-800 bg-white/80 border border-zinc-300 rounded-full hover:bg-white transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-zinc-800 bg-white/80 border border-zinc-300 rounded-full hover:bg-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -109,7 +110,7 @@ export default function Header() {
               <Link
                 href="/#adhesions"
                 onClick={(e) => scrollToHash(e, "/#adhesions")}
-                className="px-5 py-2.5 text-[13px] font-semibold text-white bg-zinc-900 rounded-full hover:bg-zinc-800 transition-colors"
+                className="px-4 py-2 text-[13px] font-semibold text-white bg-zinc-900 rounded-full hover:bg-zinc-800 transition-colors whitespace-nowrap"
               >
                 Adhérer
               </Link>

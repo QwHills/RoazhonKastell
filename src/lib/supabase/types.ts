@@ -29,6 +29,7 @@ export interface Profile {
   photo_url: string | null;
   iad_slug: string | null;
   city: string | null;
+  address: string | null;
   bio: string | null;
   specialties: string[] | null;
   roles: UserRole[];
@@ -467,6 +468,34 @@ export interface PartnerDiscovery {
   updated_at: string;
 }
 
+export type LocationRequestStatus = "nouvelle" | "acceptee" | "refusee" | "contrat_envoye" | "contrat_signe";
+
+export interface LocationRequest {
+  id: string;
+  formule: string;
+  date_debut: string;
+  date_fin: string | null;
+  objet: string;
+  nb_personnes: number;
+  is_adherent: boolean;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  adresse: string;
+  code_postal: string;
+  ville: string;
+  societe: string | null;
+  siret: string | null;
+  besoins: string | null;
+  status: LocationRequestStatus;
+  admin_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Database {
   public: {
@@ -495,6 +524,7 @@ export interface Database {
       successes: { Row: Success; Insert: Partial<Success> & { type: SuccessType; title: string; declared_by: string }; Update: Partial<Success>; Relationships: [] };
       success_participants: { Row: SuccessParticipant; Insert: Partial<SuccessParticipant> & { success_id: string }; Update: Partial<SuccessParticipant>; Relationships: [] };
       success_financials: { Row: SuccessFinancial; Insert: Partial<SuccessFinancial> & { success_id: string; user_id: string }; Update: Partial<SuccessFinancial>; Relationships: [] };
+      location_requests: { Row: LocationRequest; Insert: Partial<LocationRequest> & { formule: string; date_debut: string; objet: string; nb_personnes: number; nom: string; prenom: string; email: string; telephone: string; adresse: string; code_postal: string; ville: string }; Update: Partial<LocationRequest>; Relationships: [] };
     };
     Views: {};
     Functions: {};
@@ -516,6 +546,7 @@ export interface Database {
       success_status: SuccessStatus;
       participant_role: ParticipantRole;
       confirmation_status: ConfirmationStatus;
+      location_request_status: LocationRequestStatus;
     };
     CompositeTypes: {};
   };
