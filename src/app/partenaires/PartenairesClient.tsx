@@ -94,7 +94,7 @@ export default function PartenairesClient({ partners }: { partners: PartnerRow[]
       {/* Hero */}
       <section className="relative overflow-hidden bg-zinc-900">
         <Image
-          src="/chateau.jpg"
+          src="/chateau.webp"
           alt="Le château de Roazhon Kastell"
           fill
           className="object-cover opacity-40"

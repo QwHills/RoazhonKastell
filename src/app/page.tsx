@@ -248,7 +248,7 @@ function ReussitesBanner() {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="relative rounded-2xl overflow-hidden bg-zinc-900">
           <Image
-            src="/chateau-drone.jpg"
+            src="/chateau-drone.webp"
             alt=""
             fill
             sizes="100vw"

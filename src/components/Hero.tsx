@@ -9,7 +9,7 @@ export default function Hero() {
     >
       {/* Background photo — framed on the château facade */}
       <Image
-        src="/chateau-drone.jpg"
+        src="/chateau-drone.webp"
         alt=""
         fill
         priority

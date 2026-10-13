@@ -214,7 +214,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       >
         {/* Background photo */}
         <Image
-          src="/chateau-drone.jpg"
+          src="/chateau-drone.webp"
           alt=""
           aria-hidden
           fill

@@ -338,7 +338,7 @@ export default async function EspacePage() {
       {/* Next event card */}
       <div className="relative rounded-2xl overflow-hidden mb-8 bg-zinc-900 text-white">
         <Image
-          src="/chateau.jpg"
+          src="/chateau.webp"
           alt=""
           fill
           sizes="(max-width: 1024px) 100vw, calc(100vw - 256px)"

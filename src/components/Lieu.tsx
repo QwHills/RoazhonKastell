@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const cartes = [
@@ -46,10 +47,12 @@ export default function Lieu() {
             className="relative w-full"
             style={{ minHeight: "420px" }}
           >
-            <img
-              src="/chateau.jpg"
+            <Image
+              src="/chateau.webp"
               alt="Le château du Roazhon Kastell"
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
               style={{ objectPosition: "center 35%" }}
             />
             {/* Gradient overlay */}

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LocationForm from "./LocationForm";
@@ -49,10 +50,13 @@ export default function LocationPage() {
       <main className="bg-white">
         {/* Hero */}
         <section className="relative bg-zinc-900 text-white overflow-hidden">
-          <img
-            src="/chateau.jpg"
+          <Image
+            src="/chateau.webp"
             alt="Château de Lillion"
-            className="absolute inset-0 w-full h-full object-cover object-[center_30%]"
+            fill
+            sizes="100vw"
+            priority
+            className="object-cover object-[center_30%]"
           />
           <div className="absolute inset-0 bg-black/60" />
           <div className="relative max-w-5xl mx-auto px-5 sm:px-6 lg:px-8 py-24 sm:py-32 text-center">
