@@ -49,6 +49,7 @@ export default function MembresClient({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFirstName, setInviteFirstName] = useState("");
   const [inviteLastName, setInviteLastName] = useState("");
+  const [inviteAddress, setInviteAddress] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMessage, setInviteMessage] = useState("");
 
@@ -132,6 +133,7 @@ export default function MembresClient({
         email: inviteEmail,
         firstName: inviteFirstName,
         lastName: inviteLastName,
+        address: inviteAddress,
       }),
     });
 
@@ -145,6 +147,7 @@ export default function MembresClient({
       setInviteEmail("");
       setInviteFirstName("");
       setInviteLastName("");
+      setInviteAddress("");
       setTimeout(() => {
         setInviteOpen(false);
         setInviteMessage("");
@@ -253,6 +256,16 @@ export default function MembresClient({
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Adresse postale</label>
+                <input
+                  type="text"
+                  value={inviteAddress}
+                  onChange={(e) => setInviteAddress(e.target.value)}
+                  placeholder="12 rue de la Paix, 35000 Rennes"
                   className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>

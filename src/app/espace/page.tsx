@@ -58,12 +58,16 @@ export default async function EspacePage() {
   const tuesdayEnd = new Date(nextTuesday);
   tuesdayEnd.setHours(23, 59, 59, 999);
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Step 1: All independent queries in parallel (including meeting query)
   const [
     { count: myPropertiesCount },
     { count: mySearchesCount },
     pendingResult,
     { data: nextEvents },
     { data: tuesdayEvents },
+    { data: meetingsData },
   ] = await Promise.all([
     supabase
       .from("shared_properties")
@@ -96,143 +100,154 @@ export default async function EspacePage() {
           .lte("starts_at", tuesdayEnd.toISOString())
           .order("starts_at", { ascending: true })
       : Promise.resolve({ data: [] }),
+    isExec
+      ? supabase
+          .from("meetings")
+          .select("id, title, meeting_date, starts_time, ends_time, location")
+          .gte("meeting_date", todayStr)
+          .not("status", "in", '("archive","termine")')
+          .order("meeting_date", { ascending: true })
+          .limit(1)
+      : Promise.resolve({ data: null }),
   ]);
 
   const pendingCount = pendingResult.count || 0;
 
-  // Next exec meeting
-  let nextMeeting: { id: string; title: string; meeting_date: string; starts_time: string | null; ends_time: string | null; location: string | null } | null = null;
-  let meetingSubjectCount = 0;
-  let meetingTotalMinutes = 0;
-  let myMeetingResponse: string | null = null;
-  let meetingPresentCount = 0;
-  let meetingAbsentCount = 0;
-  let meetingWaitingCount = 0;
+  // Step 2: Two parallel chains — meeting details + event resolution
+  const [meetingResult, eventResult] = await Promise.all([
+    // Chain A: Meeting details (exec only)
+    (async () => {
+      const nextMeeting = meetingsData?.[0] || null;
+      if (!nextMeeting) return { nextMeeting: null as typeof nextMeeting, subjectCount: 0, totalMinutes: 0, myResponse: null as string | null, presentCount: 0, absentCount: 0, waitingCount: 0 };
 
-  if (isExec) {
-    const todayStr = new Date().toISOString().split("T")[0];
-    const { data: meetings } = await supabase
-      .from("meetings")
-      .select("id, title, meeting_date, starts_time, ends_time, location")
-      .gte("meeting_date", todayStr)
-      .not("status", "in", '("archive","termine")')
-      .order("meeting_date", { ascending: true })
-      .limit(1);
-
-    nextMeeting = meetings?.[0] || null;
-
-    if (nextMeeting) {
       const [{ data: subs }, { data: atts }] = await Promise.all([
-        supabase
-          .from("meeting_subjects")
-          .select("duration_minutes")
-          .eq("meeting_id", nextMeeting.id),
-        supabase
-          .from("meeting_attendees")
-          .select("user_id, response")
-          .eq("meeting_id", nextMeeting.id),
+        supabase.from("meeting_subjects").select("duration_minutes").eq("meeting_id", nextMeeting.id),
+        supabase.from("meeting_attendees").select("user_id, response").eq("meeting_id", nextMeeting.id),
       ]);
 
-      meetingSubjectCount = subs?.length || 0;
-      meetingTotalMinutes = (subs || []).reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      let myResponse: string | null = null;
+      let presentCount = 0;
+      let absentCount = 0;
+      let waitingCount = 0;
 
       for (const a of atts || []) {
-        if (a.user_id === profile.id) myMeetingResponse = a.response;
-        if (a.response === "present") meetingPresentCount++;
-        else if (a.response === "absent") meetingAbsentCount++;
-        else meetingWaitingCount++;
+        if (a.user_id === profile.id) myResponse = a.response;
+        if (a.response === "present") presentCount++;
+        else if (a.response === "absent") absentCount++;
+        else waitingCount++;
       }
-    }
-  }
 
-  type EventInfo = { id: string; title: string; starts_at: string; ends_at: string | null };
-  let nextEvent: EventInfo | null = null;
-  let otherTuesdayEvents: EventInfo[] = [];
-  let nextTuesdayFallback = false;
+      return {
+        nextMeeting,
+        subjectCount: subs?.length || 0,
+        totalMinutes: (subs || []).reduce((sum: number, s: { duration_minutes: number | null }) => sum + (s.duration_minutes || 0), 0),
+        myResponse,
+        presentCount,
+        absentCount,
+        waitingCount,
+      };
+    })(),
 
-  if (isPartner) {
-    nextEvent = nextEvents?.[0] || null;
-  } else {
-    const allTuesday = (tuesdayEvents || []) as EventInfo[];
-    let mainEvent = allTuesday.find((e) => e.title.toLowerCase().includes("présentation")) || null;
+    // Chain B: Event resolution → registration → properties
+    (async () => {
+      type EventInfo = { id: string; title: string; starts_at: string; ends_at: string | null };
+      let nextEvent: EventInfo | null = null;
+      let otherTuesdayEvents: EventInfo[] = [];
+      let nextTuesdayFallback = false;
 
-    if (!mainEvent) {
-      const adminClient = getAdminClient();
-      const y = nextTuesday.getFullYear();
-      const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
-      const d = String(nextTuesday.getDate()).padStart(2, "0");
-      const dateStr = `${y}-${m}-${d}`;
-      const slug = `mardi-coworking-${dateStr.replace(/-/g, "")}`;
-      const { data: created } = await adminClient
-        .from("events")
-        .upsert({
-          title: "Présentation des biens & échanges",
-          slug,
-          category: "mardi-coworking",
-          location: "Roazhon Kastell, Rennes",
-          starts_at: parisToISO(dateStr, "09:30"),
-          ends_at: parisToISO(dateStr, "10:30"),
-          status: "publie",
-          visibility: "public",
-          created_by: profile.id,
-        }, { onConflict: "slug" })
-        .select("id, title, starts_at, ends_at")
-        .single();
-
-      if (created) {
-        mainEvent = created;
+      if (isPartner) {
+        nextEvent = nextEvents?.[0] || null;
       } else {
-        nextTuesdayFallback = true;
+        const allTuesday = (tuesdayEvents || []) as EventInfo[];
+        let mainEvent = allTuesday.find((e) => e.title.toLowerCase().includes("présentation")) || null;
+
+        if (!mainEvent) {
+          const adminClient = getAdminClient();
+          const y = nextTuesday.getFullYear();
+          const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
+          const d = String(nextTuesday.getDate()).padStart(2, "0");
+          const dateStr = `${y}-${m}-${d}`;
+          const slug = `mardi-coworking-${dateStr.replace(/-/g, "")}`;
+          const { data: created } = await adminClient
+            .from("events")
+            .upsert({
+              title: "Présentation des biens & échanges",
+              slug,
+              category: "mardi-coworking",
+              location: "Roazhon Kastell, Rennes",
+              starts_at: parisToISO(dateStr, "09:30"),
+              ends_at: parisToISO(dateStr, "10:30"),
+              status: "publie",
+              visibility: "public",
+              created_by: profile.id,
+            }, { onConflict: "slug" })
+            .select("id, title, starts_at, ends_at")
+            .single();
+
+          if (created) {
+            mainEvent = created;
+          } else {
+            nextTuesdayFallback = true;
+          }
+        }
+
+        if (mainEvent) {
+          nextEvent = mainEvent;
+          otherTuesdayEvents = allTuesday.filter((e) => e.id !== mainEvent!.id);
+        }
       }
-    }
 
-    if (mainEvent) {
-      nextEvent = mainEvent;
-      otherTuesdayEvents = allTuesday.filter((e) => e.id !== mainEvent!.id);
-    }
-  }
+      // Registration check
+      let isRegistered = false;
+      const atelierRegisteredSet = new Set<string>();
+      const allEventIds = [
+        ...(nextEvent ? [nextEvent.id] : []),
+        ...otherTuesdayEvents.map((e) => e.id),
+      ];
+      if (allEventIds.length > 0) {
+        const { data: regs } = await supabase
+          .from("event_registrations")
+          .select("event_id")
+          .in("event_id", allEventIds)
+          .eq("user_id", profile.id)
+          .eq("status", "inscrit");
+        for (const r of regs || []) {
+          if (nextEvent && r.event_id === nextEvent.id) isRegistered = true;
+          else atelierRegisteredSet.add(r.event_id);
+        }
+      }
 
-  let isRegistered = false;
-  const atelierRegisteredSet = new Set<string>();
-  const allEventIds = [
-    ...(nextEvent ? [nextEvent.id] : []),
-    ...otherTuesdayEvents.map((e) => e.id),
-  ];
-  if (allEventIds.length > 0) {
-    const { data: regs } = await supabase
-      .from("event_registrations")
-      .select("event_id")
-      .in("event_id", allEventIds)
-      .eq("user_id", profile.id)
-      .eq("status", "inscrit");
-    for (const r of regs || []) {
-      if (nextEvent && r.event_id === nextEvent.id) isRegistered = true;
-      else atelierRegisteredSet.add(r.event_id);
-    }
-  }
+      // Tuesday property count
+      let myTuesdayPropertyCount = 0;
+      if (!isPartner && isRegistered) {
+        const adminClient = getAdminClient();
+        const y = nextTuesday.getFullYear();
+        const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
+        const d = String(nextTuesday.getDate()).padStart(2, "0");
+        const sessionDate = `${y}-${m}-${d}`;
+        const { data: session } = await adminClient
+          .from("tuesday_sessions")
+          .select("id")
+          .eq("session_date", sessionDate)
+          .single();
+        if (session) {
+          const { count } = await adminClient
+            .from("tuesday_session_properties")
+            .select("id", { count: "exact", head: true })
+            .eq("session_id", session.id)
+            .eq("owner_id", profile.id);
+          myTuesdayPropertyCount = count || 0;
+        }
+      }
 
-  let myTuesdayPropertyCount = 0;
-  if (!isPartner && isRegistered) {
-    const adminClient = getAdminClient();
-    const y = nextTuesday.getFullYear();
-    const m = String(nextTuesday.getMonth() + 1).padStart(2, "0");
-    const d = String(nextTuesday.getDate()).padStart(2, "0");
-    const sessionDate = `${y}-${m}-${d}`;
-    const { data: session } = await adminClient
-      .from("tuesday_sessions")
-      .select("id")
-      .eq("session_date", sessionDate)
-      .single();
-    if (session) {
-      const { count } = await adminClient
-        .from("tuesday_session_properties")
-        .select("id", { count: "exact", head: true })
-        .eq("session_id", session.id)
-        .eq("owner_id", profile.id);
-      myTuesdayPropertyCount = count || 0;
-    }
-  }
+      return { nextEvent, otherTuesdayEvents, nextTuesdayFallback, isRegistered, atelierRegisteredSet, myTuesdayPropertyCount };
+    })(),
+  ]);
 
+  const { nextMeeting, subjectCount: meetingSubjectCount, totalMinutes: meetingTotalMinutes, myResponse: myMeetingResponse, presentCount: meetingPresentCount, absentCount: meetingAbsentCount, waitingCount: meetingWaitingCount } = meetingResult;
+  const { nextEvent, otherTuesdayEvents, isRegistered, atelierRegisteredSet, myTuesdayPropertyCount } = eventResult;
+
+  // Step 3: Dashboard cards (depends on nextEvent from step 2)
   const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction, successesCard] = await Promise.all([
     !isPartner ? getWeeklyAction(supabase, profile.id) : Promise.resolve(null),
     !isPartner && nextEvent ? getMeetSuggestion(supabase, profile.id, nextEvent.id) : Promise.resolve(null),
@@ -242,86 +257,6 @@ export default async function EspacePage() {
   ]);
 
   const hasCards = !!(weeklyAction || meetSuggestion || partnerDiscovery);
-
-  // Onboarding stats for admins
-  let onboardingStats: {
-    adherents: { connected: { name: string; email: string; connected: boolean }[]; notConnected: { name: string; email: string; connected: boolean }[] };
-    partenaires: { connected: { name: string; email: string; connected: boolean }[]; notConnected: { name: string; email: string; connected: boolean }[]; ficheComplete: { name: string; email: string; connected: boolean }[]; ficheIncomplete: { name: string; email: string; connected: boolean }[] };
-  } | null = null;
-
-  if (admin) {
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (serviceRoleKey && supabaseUrl) {
-      const adminDb = getAdminClient();
-      const [authRes, { data: allProfiles }, { data: partnerMembers }, { data: partners }] = await Promise.all([
-        fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=500`, {
-          headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
-          next: { revalidate: 300 },
-        }),
-        adminDb
-          .from("profiles")
-          .select("id, first_name, last_name, email, roles, member_status")
-          .eq("member_status", "actif")
-          .not("email", "like", "%@roazhonkastell.test"),
-        adminDb
-          .from("partner_members")
-          .select("user_id, partner_id"),
-        adminDb
-          .from("partners")
-          .select("id, name, description, logo_url, status"),
-      ]);
-
-      const authData = await authRes.json();
-      const authUsers = authData?.users || authData || [];
-      const signInMap = new Map<string, boolean>();
-      for (const u of authUsers) {
-        if (u.email) signInMap.set(u.email, !!u.last_sign_in_at);
-      }
-
-      const partnerMemberMap = new Map((partnerMembers || []).map((pm) => [pm.user_id, pm.partner_id]));
-      const partnerMap = new Map((partners || []).map((p) => [p.id, p]));
-
-      const adhConnected: { name: string; email: string; connected: boolean }[] = [];
-      const adhNotConnected: { name: string; email: string; connected: boolean }[] = [];
-      const partConnected: { name: string; email: string; connected: boolean }[] = [];
-      const partNotConnected: { name: string; email: string; connected: boolean }[] = [];
-      const partFicheComplete: { name: string; email: string; connected: boolean }[] = [];
-      const partFicheIncomplete: { name: string; email: string; connected: boolean }[] = [];
-
-      for (const p of allProfiles || []) {
-        const roles = (p.roles as string[]) || [];
-        const name = `${p.first_name} ${p.last_name}`.trim();
-        const email = p.email as string;
-        const connected = signInMap.get(email) ?? false;
-        const entry = { name, email, connected };
-
-        if (roles.includes("partenaire")) {
-          if (connected) partConnected.push(entry);
-          else partNotConnected.push(entry);
-          const partnerId = partnerMemberMap.get(p.id);
-          if (partnerId) {
-            const partner = partnerMap.get(partnerId);
-            if (partner && partner.name && partner.description && partner.status !== "brouillon") {
-              partFicheComplete.push(entry);
-            } else {
-              partFicheIncomplete.push(entry);
-            }
-          } else {
-            partFicheIncomplete.push(entry);
-          }
-        } else {
-          if (connected) adhConnected.push(entry);
-          else adhNotConnected.push(entry);
-        }
-      }
-
-      onboardingStats = {
-        adherents: { connected: adhConnected, notConnected: adhNotConnected },
-        partenaires: { connected: partConnected, notConnected: partNotConnected, ficheComplete: partFicheComplete, ficheIncomplete: partFicheIncomplete },
-      };
-    }
-  }
 
   return (
     <div>
@@ -350,7 +285,7 @@ export default async function EspacePage() {
         <div className="relative z-10 p-8 sm:p-10">
           <div className="flex items-center gap-2 text-sm text-white/60 mb-3">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
             </svg>
             {isPartner ? "Mon prochain événement" : "Mon prochain mardi"}
           </div>
@@ -563,13 +498,10 @@ export default async function EspacePage() {
         </div>
       )}
 
-      {/* Onboarding stats — admin only */}
-      {admin && onboardingStats && (
+      {/* Onboarding stats — admin only, lazy-loaded client-side */}
+      {admin && (
         <div className="mb-8">
-          <OnboardingStatsCard
-            adherents={onboardingStats.adherents}
-            partenaires={onboardingStats.partenaires}
-          />
+          <OnboardingStatsCard />
         </div>
       )}
 

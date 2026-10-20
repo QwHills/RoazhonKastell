@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/tmp/rk-dev.sh",
-      "runtimeArgs": [],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "--turbopack"],
       "port": 3000
     }
   ]

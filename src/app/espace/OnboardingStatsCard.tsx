@@ -1,23 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type UserEntry = {
   name: string;
   email: string;
   connected: boolean;
-  ficheComplete?: boolean;
 };
 
-export default function OnboardingStatsCard({
-  adherents,
-  partenaires,
-}: {
+type OnboardingData = {
   adherents: { connected: UserEntry[]; notConnected: UserEntry[] };
   partenaires: { connected: UserEntry[]; notConnected: UserEntry[]; ficheComplete: UserEntry[]; ficheIncomplete: UserEntry[] };
-}) {
+};
+
+export default function OnboardingStatsCard() {
+  const [data, setData] = useState<OnboardingData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetch("/api/espace/onboarding-stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white border border-zinc-200 rounded-2xl p-5 animate-pulse">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-zinc-100" />
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-zinc-100 rounded" />
+            <div className="h-3 w-24 bg-zinc-100 rounded" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="h-10 bg-zinc-50 rounded-xl" />
+          <div className="h-10 bg-zinc-50 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { adherents, partenaires } = data;
   const totalAdherents = adherents.connected.length + adherents.notConnected.length;
   const totalPartenaires = partenaires.connected.length + partenaires.notConnected.length;
 

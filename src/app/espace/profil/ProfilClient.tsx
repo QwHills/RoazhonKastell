@@ -9,6 +9,7 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
   const [lastName, setLastName] = useState(initial.last_name);
   const [phone, setPhone] = useState(initial.phone || "");
   const [city, setCity] = useState(initial.city || "");
+  const [address, setAddress] = useState(initial.address || "");
   const [bio, setBio] = useState(initial.bio || "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,6 +82,7 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
         last_name: lastName,
         phone: phone || null,
         city: city || null,
+        address: address || null,
         bio: bio || null,
       })
       .eq("id", initial.id);
@@ -172,6 +174,8 @@ export default function ProfilClient({ profile: initial }: { profile: Profile })
           <Field label="Téléphone" value={phone} onChange={setPhone} type="tel" />
           <Field label="Ville" value={city} onChange={setCity} />
         </div>
+
+        <Field label="Adresse postale" value={address} onChange={setAddress} />
 
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1.5">Présentation</label>

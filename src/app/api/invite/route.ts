@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { email, firstName, lastName } = body;
+  const { email, firstName, lastName, address } = body;
 
   if (!email) {
     return NextResponse.json({ error: "Email requis" }, { status: 400 });
@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     await adminClient.from("profiles").update({
       first_name: firstName || "",
       last_name: lastName || "",
+      address: address || null,
       member_status: "actif",
     }).eq("id", createData.user.id);
   }

@@ -46,7 +46,7 @@ function DiscoverCards() {
           >
             <div className="relative overflow-hidden bg-zinc-100" style={{ aspectRatio: "16/9" }}>
               <Image
-                src="/photo-conseillers.jpg"
+                src="/photo-conseillers.webp"
                 alt="Conseillers immobiliers"
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
