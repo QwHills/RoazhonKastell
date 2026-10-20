@@ -2,13 +2,11 @@ import { getCurrentUser, isAdmin, canManageMembers, hasRole, canViewReunions } f
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { Profile } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
 import ParticipeButton from "./ParticipeButton";
 import AtelierParticipeButton from "./AtelierParticipeButton";
-import { getWeeklyAction, getMeetSuggestion, getPartnerDiscovery, getPartnerFicheAction, getSuccessesCard } from "@/lib/dashboard-cards";
-import { ActionWeekCard, MeetCounselorCard, PartnerDiscoverCard, PartnerFicheCard, SuccessesCard } from "./DashboardCards";
+import DashboardCardsLoader from "./DashboardCardsLoader";
 import ReunionDashboardCard from "./ReunionDashboardCard";
 import OnboardingStatsCard from "./OnboardingStatsCard";
 
@@ -247,17 +245,6 @@ export default async function EspacePage() {
   const { nextMeeting, subjectCount: meetingSubjectCount, totalMinutes: meetingTotalMinutes, myResponse: myMeetingResponse, presentCount: meetingPresentCount, absentCount: meetingAbsentCount, waitingCount: meetingWaitingCount } = meetingResult;
   const { nextEvent, otherTuesdayEvents, isRegistered, atelierRegisteredSet, myTuesdayPropertyCount } = eventResult;
 
-  // Step 3: Dashboard cards (depends on nextEvent from step 2)
-  const [weeklyAction, meetSuggestion, partnerDiscovery, partnerFicheAction, successesCard] = await Promise.all([
-    !isPartner ? getWeeklyAction(supabase, profile.id) : Promise.resolve(null),
-    !isPartner && nextEvent ? getMeetSuggestion(supabase, profile.id, nextEvent.id) : Promise.resolve(null),
-    !isPartner ? getPartnerDiscovery(supabase, profile.id) : Promise.resolve(null),
-    isPartner ? getPartnerFicheAction(supabase, profile.id) : Promise.resolve(null),
-    !isPartner ? getSuccessesCard(supabase, profile.id) : Promise.resolve(null),
-  ]);
-
-  const hasCards = !!(weeklyAction || meetSuggestion || partnerDiscovery);
-
   return (
     <div>
       {/* Greeting */}
@@ -396,30 +383,8 @@ export default async function EspacePage() {
         />
       )}
 
-      {/* Dashboard cards — adherents */}
-      {hasCards && (
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          {weeklyAction && <ActionWeekCard data={weeklyAction} />}
-          {meetSuggestion && nextEvent && (
-            <MeetCounselorCard data={meetSuggestion} eventId={nextEvent.id} />
-          )}
-          {partnerDiscovery && <PartnerDiscoverCard data={partnerDiscovery} />}
-        </div>
-      )}
-
-      {/* Dashboard card — partenaires */}
-      {partnerFicheAction && (
-        <div className="mb-8">
-          <PartnerFicheCard data={partnerFicheAction} />
-        </div>
-      )}
-
-      {/* Successes card */}
-      {successesCard && (
-        <div className="mb-8">
-          <SuccessesCard data={successesCard} />
-        </div>
-      )}
+      {/* Dashboard cards — lazy-loaded client-side */}
+      <DashboardCardsLoader nextEventId={nextEvent?.id || null} isPartner={isPartner} />
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

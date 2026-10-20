@@ -22,6 +22,7 @@ function InscriptionForm() {
     lastName: "",
     email: "",
     phone: "",
+    address: "",
     iadId: "",
     rsacNumber: "",
     rsacCity: "",
@@ -57,6 +58,7 @@ function InscriptionForm() {
       data.append("lastName", form.lastName.trim());
       data.append("email", form.email.trim());
       data.append("phone", form.phone.trim());
+      data.append("address", form.address.trim());
       data.append("iadId", form.iadId.trim());
       data.append("rsacNumber", form.rsacNumber.trim());
       data.append("rsacCity", form.rsacCity.trim());
@@ -137,6 +139,8 @@ function InscriptionForm() {
         <Field label="Email IAD" type="email" required value={form.email} onChange={set("email")} placeholder="prenom.nom@iadfrance.fr" />
 
         <Field label="Téléphone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="06 XX XX XX XX" />
+
+        <Field label="Adresse postale" required value={form.address} onChange={set("address")} placeholder="Numéro, rue, code postal, ville" />
 
         <Field label="Identifiant IAD" required value={form.iadId} onChange={set("iadId")} placeholder="Votre identifiant conseiller" />
 

@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const lastName = (data.get("lastName") as string)?.trim();
     const email = (data.get("email") as string)?.trim().toLowerCase();
     const phone = (data.get("phone") as string)?.trim();
+    const address = (data.get("address") as string)?.trim();
     const iadId = (data.get("iadId") as string)?.trim();
     const rsacNumber = (data.get("rsacNumber") as string)?.trim();
     const rsacCity = (data.get("rsacCity") as string)?.trim();
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       first_name: firstName,
       last_name: lastName,
       phone,
+      address: address || null,
       iad_id: iadId,
       rsac_number: rsacNumber,
       rsac_city: rsacCity,
