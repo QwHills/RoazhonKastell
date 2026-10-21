@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { scrapeIadProfilePhoto } from "@/lib/iad-utils";
 import type { UserRole } from "@/lib/supabase/types";
 
 const DEFAULT_PASSWORD = process.env.PARTNER_DEFAULT_PASSWORD || "Roazhonkastell35";
@@ -69,6 +70,15 @@ export async function POST(request: Request) {
       address: address || null,
       member_status: "actif",
     }).eq("id", createData.user.id);
+
+    const userId = createData.user.id;
+    if (firstName && lastName) {
+      scrapeIadProfilePhoto(firstName, lastName).then((photoUrl) => {
+        if (photoUrl) {
+          adminClient.from("profiles").update({ photo_url: photoUrl }).eq("id", userId);
+        }
+      }).catch(() => {});
+    }
   }
 
   revalidatePath("/conseillers");
