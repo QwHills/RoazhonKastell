@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { scrapeIadProfilePhoto } from "@/lib/iad-utils";
 
@@ -100,6 +101,9 @@ export async function POST(request: Request) {
         adminClient.from("profiles").update({ photo_url: photoUrl }).eq("id", userId);
       }
     }).catch(() => {});
+
+    revalidatePath("/conseillers");
+    revalidatePath("/partenaires");
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -97,6 +97,13 @@ export default function MembresClient({
       prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     );
     setEditingId(null);
+    if (updates.member_status) {
+      fetch("/api/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: ["/conseillers", "/partenaires"] }),
+      }).catch(() => {});
+    }
   }
 
   async function deleteMember(id: string) {

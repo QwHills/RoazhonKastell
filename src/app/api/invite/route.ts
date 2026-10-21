@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import type { UserRole } from "@/lib/supabase/types";
@@ -69,6 +70,9 @@ export async function POST(request: Request) {
       member_status: "actif",
     }).eq("id", createData.user.id);
   }
+
+  revalidatePath("/conseillers");
+  revalidatePath("/partenaires");
 
   return NextResponse.json({ success: true });
 }
