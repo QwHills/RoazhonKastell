@@ -101,7 +101,7 @@ export default function MembresClient({
       fetch("/api/revalidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths: ["/conseillers", "/partenaires"] }),
+        body: JSON.stringify({ paths: ["/conseillers", "/partenaires"], memberId: id }),
       }).catch(() => {});
     }
   }
