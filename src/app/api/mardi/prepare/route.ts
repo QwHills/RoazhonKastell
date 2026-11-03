@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       session_id: sessionId,
       property_id: propertyId,
       owner_id: profile.id,
+      status: "a_presenter",
     });
 
   if (error) {

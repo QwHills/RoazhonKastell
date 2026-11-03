@@ -31,6 +31,7 @@ export default function MardiPreparation({
   const [prepared, setPrepared] = useState<PreparedProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSession = useCallback(async () => {
     const res = await fetch("/api/mardi/session?role=conseiller");
@@ -52,13 +53,24 @@ export default function MardiPreparation({
   async function addProperty(propertyId: string) {
     if (!sessionId || acting) return;
     setActing(propertyId);
-    const res = await fetch("/api/mardi/prepare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, propertyId }),
-    });
-    if (res.ok) await fetchSession();
-    setActing(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/mardi/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, propertyId }),
+      });
+      if (res.ok) {
+        await fetchSession();
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || `Erreur ${res.status}`);
+      }
+    } catch {
+      setError("Erreur réseau — vérifie ta connexion");
+    } finally {
+      setActing(null);
+    }
   }
 
   async function removeProperty(propertyId: string) {
@@ -66,13 +78,24 @@ export default function MardiPreparation({
     const sp = prepared.find((p) => p.property_id === propertyId);
     if (!sp) return;
     setActing(propertyId);
-    const res = await fetch("/api/mardi/prepare", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionPropertyId: sp.id }),
-    });
-    if (res.ok) await fetchSession();
-    setActing(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/mardi/prepare", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionPropertyId: sp.id }),
+      });
+      if (res.ok) {
+        await fetchSession();
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || `Erreur ${res.status}`);
+      }
+    } catch {
+      setError("Erreur réseau — vérifie ta connexion");
+    } finally {
+      setActing(null);
+    }
   }
 
   if (loading) return null;
@@ -108,6 +131,12 @@ export default function MardiPreparation({
           {prepared.length}/3
         </span>
       </div>
+
+      {error && (
+        <div className="mb-3 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-xl text-xs text-red-200">
+          {error}
+        </div>
+      )}
 
       {/* Prepared properties */}
       {prepared.length > 0 && (
