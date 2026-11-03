@@ -1,21 +1,36 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, hasRole } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/mardi";
 
 const MAX_PER_COUNSELOR = 3;
 
 export async function POST(request: Request) {
-  const profile = await getCurrentUser();
-  if (!profile || hasRole(profile, "partenaire")) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Connexion expirée — recharge la page" }, { status: 401 });
+  }
+
+  const admin = getAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, roles")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) {
+    return NextResponse.json({ error: "Profil introuvable" }, { status: 401 });
+  }
+
+  if ((profile.roles as string[]).includes("partenaire")) {
+    return NextResponse.json({ error: "Les partenaires ne peuvent pas ajouter de biens" }, { status: 403 });
   }
 
   const { sessionId, propertyId } = await request.json();
   if (!sessionId || !propertyId) {
     return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
   }
-
-  const admin = getAdminClient();
 
   const { data: session } = await admin
     .from("tuesday_sessions")
@@ -70,8 +85,11 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const profile = await getCurrentUser();
-  if (!profile) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Connexion expirée — recharge la page" }, { status: 401 });
+  }
 
   const { sessionPropertyId } = await request.json();
   if (!sessionPropertyId) {
@@ -86,7 +104,7 @@ export async function DELETE(request: Request) {
     .eq("id", sessionPropertyId)
     .single();
 
-  if (!sp || sp.owner_id !== profile.id) {
+  if (!sp || sp.owner_id !== user.id) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
