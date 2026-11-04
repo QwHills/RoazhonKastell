@@ -126,6 +126,9 @@ export default function ReunionsClient({
   // Selected proposed subjects for AI
   const [selectedProposedIds, setSelectedProposedIds] = useState<Set<string>>(new Set());
 
+  // Acting on a proposed subject (add to agenda / delete)
+  const [actingSubjectId, setActingSubjectId] = useState<string | null>(null);
+
   const today = new Date().toISOString().split("T")[0];
 
   const prochaine = useMemo(() => {
@@ -357,6 +360,39 @@ export default function ReunionsClient({
       flash("error", "Erreur lors de la génération de l'ordre du jour.");
     }
     setAiLoading(false);
+  }
+
+  // ---- Add proposed subject to agenda ----
+
+  async function addSubjectToAgenda(subjectId: string) {
+    if (!prochaine || actingSubjectId) return;
+    setActingSubjectId(subjectId);
+    const res = await fetch("/api/reunions/subjects", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: subjectId, meeting_id: prochaine.id, status: "a_traiter" }),
+    });
+    if (res.ok) {
+      setSubjects((prev) => prev.map((s) => s.id === subjectId ? { ...s, meeting_id: prochaine.id, status: "a_traiter" } : s));
+      flash("success", "Sujet ajouté à l'ordre du jour !");
+    } else {
+      flash("error", "Erreur lors de l'ajout du sujet.");
+    }
+    setActingSubjectId(null);
+  }
+
+  async function deleteSubject(subjectId: string) {
+    const s = subjects.find((x) => x.id === subjectId);
+    if (!s || !confirm(`Supprimer le sujet « ${s.title} » ?`)) return;
+    setActingSubjectId(subjectId);
+    const res = await fetch(`/api/reunions/subjects?id=${subjectId}`, { method: "DELETE" });
+    if (res.ok) {
+      setSubjects((prev) => prev.filter((x) => x.id !== subjectId));
+      flash("success", "Sujet supprimé.");
+    } else {
+      flash("error", "Erreur lors de la suppression.");
+    }
+    setActingSubjectId(null);
   }
 
   // ---- Subject proposal ----
@@ -848,13 +884,36 @@ export default function ReunionsClient({
               ) : (
                 <div className="space-y-2">
                   {openSubjects.map((s) => (
-                    <div key={s.id} className="flex items-start justify-between gap-2 py-2 border-b border-zinc-50 last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-zinc-700">{s.title}</p>
-                        {s.description && <p className="text-xs text-zinc-400 mt-0.5">{s.description}</p>}
-                        {s.profiles && <p className="text-[11px] text-zinc-300 mt-0.5">{s.profiles.first_name} {s.profiles.last_name}</p>}
+                    <div key={s.id} className="py-2 border-b border-zinc-50 last:border-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-zinc-700">{s.title}</p>
+                          {s.description && <p className="text-xs text-zinc-400 mt-0.5">{s.description}</p>}
+                          {s.profiles && <p className="text-[11px] text-zinc-300 mt-0.5">{s.profiles.first_name} {s.profiles.last_name}</p>}
+                        </div>
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-medium flex-shrink-0">À examiner</span>
                       </div>
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-medium flex-shrink-0">À examiner</span>
+                      <div className="flex items-center gap-2 mt-2">
+                        {prochaine && (
+                          <button
+                            onClick={() => addSubjectToAgenda(s.id)}
+                            disabled={actingSubjectId === s.id}
+                            className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[11px] font-medium hover:bg-emerald-100 disabled:opacity-50 transition-colors flex items-center gap-1"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            {actingSubjectId === s.id ? "Ajout…" : "Ajouter à l'ordre du jour"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteSubject(s.id)}
+                          disabled={actingSubjectId === s.id}
+                          className="px-2.5 py-1 text-zinc-400 hover:text-red-500 rounded-lg text-[11px] hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
