@@ -65,6 +65,7 @@ const CATEGORIES = [
   "Communication",
   "Local",
   "Assurance",
+  "Solde bancaire",
   "Divers",
 ];
 
@@ -435,6 +436,7 @@ export default function FinancesClient({
   const [filterType, setFilterType] = useState<"all" | "recettes" | "depenses">("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+  const [showSoldeDetail, setShowSoldeDetail] = useState(false);
 
   const cotisationEntries = buildCotisationEntries(cotisationMembers, cotisationPartners);
 
@@ -452,14 +454,58 @@ export default function FinancesClient({
     return true;
   });
 
-  const paidPonctuelRecettes = ponctuelEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
-  const paidPonctuelDepenses = ponctuelEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const bankBalanceEntry = ponctuelEntries
+    .filter(e => e.category === "Solde bancaire" && e.type === "recette" && e.payment_status === "paye" && e.paid_at)
+    .sort((a, b) => new Date(b.paid_at!).getTime() - new Date(a.paid_at!).getTime())[0] || null;
+
+  const regularPonctuelEntries = ponctuelEntries.filter(e => e.category !== "Solde bancaire");
+
+  const paidPonctuelRecettes = regularPonctuelEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidPonctuelDepenses = regularPonctuelEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
   const paidRecurringRecettes = recurringChargeEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
   const paidRecurringDepenses = recurringChargeEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
   const paidCotisations = cotisationEntries.filter((e) => e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
 
   const totalRecettes = paidPonctuelRecettes + paidRecurringRecettes + paidCotisations;
   const totalDepenses = paidPonctuelDepenses + paidRecurringDepenses;
+
+  type SoldeItem = { label: string; amount: number; day: number; isPaid: boolean };
+  const soldeItems: SoldeItem[] = [];
+  let soldeBancaire: number | null = null;
+
+  if (bankBalanceEntry) {
+    const snapshotDay = new Date(bankBalanceEntry.paid_at!).getDate();
+    const today = new Date().getDate();
+    soldeBancaire = bankBalanceEntry.amount;
+
+    for (const charge of recurringChargeEntries) {
+      const day = charge.recurringDay || 1;
+      if (day > snapshotDay && day <= today) {
+        const delta = charge.type === "depense" ? -charge.amount : charge.amount;
+        soldeBancaire += delta;
+        soldeItems.push({ label: charge.label, amount: delta, day, isPaid: true });
+      } else if (day > today) {
+        soldeItems.push({ label: charge.label, amount: charge.type === "depense" ? -charge.amount : charge.amount, day, isPaid: false });
+      }
+    }
+
+    for (const cot of cotisationEntries) {
+      const day = cot.due_date ? new Date(cot.due_date).getDate() : null;
+      if (day && day > snapshotDay && day <= today) {
+        soldeBancaire += cot.amount;
+        soldeItems.push({ label: cot.label, amount: cot.amount, day, isPaid: true });
+      } else if (day && day > today) {
+        soldeItems.push({ label: cot.label, amount: cot.amount, day, isPaid: false });
+      }
+    }
+
+    soldeItems.sort((a, b) => a.day - b.day);
+  }
+
+  const displaySolde = soldeBancaire != null ? soldeBancaire : totalRecettes - totalDepenses;
+  const soldeFinMois = soldeBancaire != null
+    ? soldeBancaire + soldeItems.filter(i => !i.isPaid).reduce((s, i) => s + i.amount, 0)
+    : null;
 
   const recurrentRecettes = recurringChargeEntries.filter((e) => e.type === "recette").reduce((s, e) => s + e.amount, 0);
   const recurrentDepenses = recurringChargeEntries.filter((e) => e.type === "depense").reduce((s, e) => s + e.amount, 0);
@@ -638,11 +684,76 @@ export default function FinancesClient({
           <p className="text-xs text-red-600 font-medium">Dépenses payées</p>
           <p className="text-xl font-bold text-red-700 mt-1">{formatAmount(totalDepenses)}</p>
         </div>
-        <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4">
-          <p className="text-xs text-zinc-500 font-medium">Solde</p>
-          <p className="text-xl font-bold text-zinc-900 mt-1">{formatAmount(totalRecettes - totalDepenses)}</p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowSoldeDetail(!showSoldeDetail)}
+          className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 text-left hover:bg-zinc-100 transition-colors cursor-pointer relative"
+        >
+          <p className="text-xs text-zinc-500 font-medium">
+            {bankBalanceEntry ? "Solde bancaire" : "Solde"}
+          </p>
+          <p className="text-xl font-bold text-zinc-900 mt-1">{formatAmount(displaySolde)}</p>
+          {bankBalanceEntry && (
+            <p className="text-[10px] text-zinc-400 mt-0.5">
+              au {new Date(bankBalanceEntry.paid_at!).toLocaleDateString("fr-FR")} · Cliquer pour le détail
+            </p>
+          )}
+          <span className="absolute top-3 right-3 text-zinc-400 text-xs">{showSoldeDetail ? "▲" : "▼"}</span>
+        </button>
       </div>
+
+      {showSoldeDetail && bankBalanceEntry && soldeBancaire != null && (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-5 mb-6 -mt-2">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-sm font-semibold text-zinc-700">Détail du solde</p>
+            <button onClick={() => setShowSoldeDetail(false)} className="text-zinc-400 hover:text-zinc-600 text-xs">Fermer</button>
+          </div>
+
+          <div className="flex justify-between py-2 border-b border-zinc-100">
+            <span className="text-sm text-zinc-600">{bankBalanceEntry.label}</span>
+            <span className="text-sm font-semibold text-zinc-900">{formatAmount(bankBalanceEntry.amount)}</span>
+          </div>
+
+          {soldeItems.filter(i => i.isPaid).length > 0 && (
+            <>
+              <p className="text-xs text-zinc-400 font-medium mt-3 mb-1">Mouvements depuis</p>
+              {soldeItems.filter(i => i.isPaid).map((item, idx) => (
+                <div key={idx} className="flex justify-between py-1.5">
+                  <span className="text-sm text-zinc-600">{item.label} <span className="text-zinc-400 text-xs">(jour {item.day})</span></span>
+                  <span className={`text-sm font-medium ${item.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {item.amount >= 0 ? "+" : "−"}{formatAmount(Math.abs(item.amount))}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <div className="flex justify-between py-2 mt-2 border-t border-zinc-200">
+            <span className="text-sm font-semibold text-zinc-900">Solde actuel</span>
+            <span className="text-sm font-bold text-zinc-900">{formatAmount(soldeBancaire)}</span>
+          </div>
+
+          {soldeItems.filter(i => !i.isPaid).length > 0 && (
+            <>
+              <p className="text-xs text-zinc-400 font-medium mt-3 mb-1">À venir ce mois</p>
+              {soldeItems.filter(i => !i.isPaid).map((item, idx) => (
+                <div key={idx} className="flex justify-between py-1.5">
+                  <span className="text-sm text-zinc-500">{item.label} <span className="text-zinc-400 text-xs">(jour {item.day})</span></span>
+                  <span className={`text-sm font-medium ${item.amount >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                    {item.amount >= 0 ? "+" : "−"}{formatAmount(Math.abs(item.amount))}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between py-2 mt-2 border-t border-dashed border-zinc-200">
+                <span className="text-sm text-zinc-500 italic">Solde estimé fin de mois</span>
+                <span className={`text-sm font-semibold ${soldeFinMois! >= 0 ? "text-zinc-700" : "text-red-600"}`}>
+                  {formatAmount(soldeFinMois!)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Section tabs */}
       <div className="flex gap-2 mb-6">
