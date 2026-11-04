@@ -19,6 +19,8 @@ interface FinancialEntry {
   created_at: string;
   profiles?: { first_name: string; last_name: string } | { first_name: string; last_name: string }[] | null;
   isCotisation?: boolean;
+  isRecurringCharge?: boolean;
+  recurringDay?: number;
   cotisationSince?: string | null;
 }
 
@@ -182,6 +184,26 @@ function computeCotisationTotal(members: CotisationMember[], partners: Cotisatio
   return memberTotal + partnerTotal;
 }
 
+function buildRecurringChargeEntries(entries: FinancialEntry[]): FinancialEntry[] {
+  const now = new Date();
+  const today = now.getDate();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  return entries.map((e) => {
+    const paymentDay = e.paid_at ? new Date(e.paid_at).getDate() : 1;
+    const isPaid = today >= paymentDay;
+
+    return {
+      ...e,
+      due_date: `${currentMonth}-${String(paymentDay).padStart(2, "0")}`,
+      paid_at: isPaid ? `${currentMonth}-${String(paymentDay).padStart(2, "0")}` : null,
+      payment_status: (isPaid ? "paye" : "en_attente") as PaymentStatus,
+      isRecurringCharge: true,
+      recurringDay: paymentDay,
+    };
+  });
+}
+
 function EntryForm({
   form,
   setForm,
@@ -322,7 +344,7 @@ function EntryRow({
   profile: { first_name: string; last_name: string } | null;
 }) {
   return (
-    <div className={`border rounded-2xl p-4 flex items-center gap-4 ${entry.isCotisation ? "bg-blue-50/50 border-blue-200" : "bg-white border-zinc-200"}`}>
+    <div className={`border rounded-2xl p-4 flex items-center gap-4 ${entry.isCotisation ? "bg-blue-50/50 border-blue-200" : entry.isRecurringCharge ? "bg-amber-50/50 border-amber-200" : "bg-white border-zinc-200"}`}>
       <div className={`w-2 h-10 rounded-full flex-shrink-0 ${entry.type === "recette" ? "bg-emerald-400" : "bg-red-400"}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -330,6 +352,11 @@ function EntryRow({
           {entry.isCotisation && (
             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
               Cotisation
+            </span>
+          )}
+          {entry.isRecurringCharge && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+              Mensuel
             </span>
           )}
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PAYMENT_COLORS[entry.payment_status]}`}>
@@ -342,6 +369,8 @@ function EntryRow({
             ? (entry.cotisationSince
                 ? `Depuis le ${new Date(entry.cotisationSince).toLocaleDateString("fr-FR")}`
                 : "Recette récurrente")
+            : entry.isRecurringCharge
+            ? `Prélevé le ${entry.recurringDay} du mois`
             : (
               <>
                 {entry.due_date && `Échéance: ${new Date(entry.due_date).toLocaleDateString("fr-FR")}`}
@@ -395,7 +424,8 @@ export default function FinancesClient({
   const recurrentEntries = entries.filter((e) => e.recurrence === "mensuel");
   const ponctuelEntries = entries.filter((e) => e.recurrence !== "mensuel");
 
-  const recurrentAll = [...recurrentEntries, ...cotisationEntries];
+  const recurringChargeEntries = buildRecurringChargeEntries(recurrentEntries);
+  const recurrentAll = [...recurringChargeEntries, ...cotisationEntries];
   const ponctuelAll = ponctuelEntries;
 
   const currentList = section === "recurrent" ? recurrentAll : ponctuelAll;
@@ -408,8 +438,8 @@ export default function FinancesClient({
   const totalRecettes = entries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
   const totalDepenses = entries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
 
-  const recurrentRecettes = recurrentEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
-  const recurrentDepenses = recurrentEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const recurrentRecettes = recurringChargeEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const recurrentDepenses = recurringChargeEntries.filter((e) => e.type === "depense").reduce((s, e) => s + e.amount, 0);
 
   const cotisationMensuelleTotal =
     cotisationMembers.reduce((s, m) => s + m.cotisation_mensuelle, 0) +
