@@ -86,6 +86,7 @@ interface FormState {
   type: "recette" | "depense";
   recurrence: "mensuel" | "ponctuel";
   due_date: string;
+  payment_day: string;
   notes: string;
 }
 
@@ -96,6 +97,7 @@ const EMPTY_FORM: FormState = {
   type: "recette",
   recurrence: "ponctuel",
   due_date: "",
+  payment_day: "",
   notes: "",
 };
 
@@ -292,15 +294,30 @@ function EntryForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-zinc-500 mb-1">Échéance</label>
-          <input
-            type="date"
-            value={form.due_date}
-            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
-        </div>
+        {form.recurrence === "mensuel" ? (
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Jour de prélèvement</label>
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={form.payment_day}
+              onChange={(e) => setForm({ ...form, payment_day: e.target.value })}
+              placeholder="Ex: 4"
+              className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Échéance</label>
+            <input
+              type="date"
+              value={form.due_date}
+              onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+        )}
       </div>
 
       <div>
@@ -464,6 +481,12 @@ export default function FinancesClient({
     setMessage(null);
 
     const supabase = createClient();
+    const now = new Date();
+    const day = form.recurrence === "mensuel" && form.payment_day
+      ? parseInt(form.payment_day)
+      : now.getDate();
+    const paidAtDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
     const { data, error } = await supabase
       .from("financial_entries")
       .insert({
@@ -472,11 +495,11 @@ export default function FinancesClient({
         amount: Math.round(parseFloat(form.amount) * 100),
         type: form.type,
         recurrence: form.recurrence,
-        due_date: form.due_date || null,
+        due_date: form.recurrence === "ponctuel" ? (form.due_date || null) : null,
         notes: form.notes.trim() || null,
         created_by: userId,
         payment_status: "paye",
-        paid_at: new Date().toISOString().split("T")[0],
+        paid_at: paidAtDate,
       })
       .select()
       .single();
@@ -496,6 +519,7 @@ export default function FinancesClient({
 
   function startEdit(entry: FinancialEntry) {
     setEditingId(entry.id);
+    const payDay = entry.paid_at ? new Date(entry.paid_at).getDate() : "";
     setEditForm({
       label: entry.label,
       category: entry.category,
@@ -503,6 +527,7 @@ export default function FinancesClient({
       type: entry.type,
       recurrence: entry.recurrence || "ponctuel",
       due_date: entry.due_date || "",
+      payment_day: entry.recurrence === "mensuel" ? String(payDay) : "",
       notes: entry.notes || "",
     });
   }
@@ -514,17 +539,23 @@ export default function FinancesClient({
     setMessage(null);
 
     const supabase = createClient();
+    const now = new Date();
+    const updates: Record<string, unknown> = {
+      label: editForm.label.trim(),
+      category: editForm.category,
+      amount: Math.round(parseFloat(editForm.amount) * 100),
+      type: editForm.type,
+      recurrence: editForm.recurrence,
+      due_date: editForm.recurrence === "ponctuel" ? (editForm.due_date || null) : null,
+      notes: editForm.notes.trim() || null,
+    };
+    if (editForm.recurrence === "mensuel" && editForm.payment_day) {
+      const day = parseInt(editForm.payment_day);
+      updates.paid_at = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
     const { error } = await supabase
       .from("financial_entries")
-      .update({
-        label: editForm.label.trim(),
-        category: editForm.category,
-        amount: Math.round(parseFloat(editForm.amount) * 100),
-        type: editForm.type,
-        recurrence: editForm.recurrence,
-        due_date: editForm.due_date || null,
-        notes: editForm.notes.trim() || null,
-      })
+      .update(updates)
       .eq("id", editingId);
 
     if (error) {
@@ -543,7 +574,10 @@ export default function FinancesClient({
               amount: Math.round(parseFloat(editForm.amount) * 100),
               type: editForm.type as "recette" | "depense",
               recurrence: editForm.recurrence as "mensuel" | "ponctuel",
-              due_date: editForm.due_date || null,
+              due_date: editForm.recurrence === "ponctuel" ? (editForm.due_date || null) : null,
+              paid_at: editForm.recurrence === "mensuel" && editForm.payment_day
+                ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(parseInt(editForm.payment_day)).padStart(2, "0")}`
+                : entry.paid_at,
               notes: editForm.notes.trim() || null,
             }
           : entry
