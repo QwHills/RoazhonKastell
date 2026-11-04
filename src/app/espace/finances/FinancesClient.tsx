@@ -452,10 +452,16 @@ export default function FinancesClient({
     return true;
   });
 
-  const totalRecettes = entries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
-  const totalDepenses = entries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidPonctuelRecettes = ponctuelEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidPonctuelDepenses = ponctuelEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidRecurringRecettes = recurringChargeEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidRecurringDepenses = recurringChargeEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const paidCotisations = cotisationEntries.filter((e) => e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
 
-  const recurrentRecettes = recurringChargeEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const totalRecettes = paidPonctuelRecettes + paidRecurringRecettes + paidCotisations;
+  const totalDepenses = paidPonctuelDepenses + paidRecurringDepenses;
+
+  const recurrentRecettes = recurringChargeEntries.filter((e) => e.type === "recette").reduce((s, e) => s + e.amount, 0);
   const recurrentDepenses = recurringChargeEntries.filter((e) => e.type === "depense").reduce((s, e) => s + e.amount, 0);
 
   const cotisationMensuelleTotal =
@@ -471,8 +477,8 @@ export default function FinancesClient({
   const recurrentMensuelDepenses = recurrentDepenses / 100;
   const recurrentSolde = recurrentMensuelRecettes - recurrentMensuelDepenses;
 
-  const ponctuelRecettes = ponctuelEntries.filter((e) => e.type === "recette" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
-  const ponctuelDepenses = ponctuelEntries.filter((e) => e.type === "depense" && e.payment_status === "paye").reduce((s, e) => s + e.amount, 0);
+  const ponctuelRecettes = paidPonctuelRecettes;
+  const ponctuelDepenses = paidPonctuelDepenses;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
