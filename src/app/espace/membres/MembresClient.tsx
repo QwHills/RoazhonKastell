@@ -391,7 +391,7 @@ function MemberRow({
               )}
             </div>
           )}
-          {!isEditing && member.member_status === "actif" && !member.roles.includes("partenaire") && (
+          {!isEditing && member.member_status !== "inactif" && !member.roles.includes("partenaire") && (
             <div className="mt-1.5">
               <a
                 href={`/api/membres/contrat?id=${member.id}`}
