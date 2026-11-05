@@ -158,6 +158,9 @@ export default function MeetingDetailClient({
 
   // Compte rendu
   const [generatingCR, setGeneratingCR] = useState(false);
+  const [showManualCR, setShowManualCR] = useState(false);
+  const [manualCR, setManualCR] = useState("");
+  const [savingCR, setSavingCR] = useState(false);
 
   // Delete audio
   const [deletingAudio, setDeletingAudio] = useState(false);
@@ -552,6 +555,25 @@ export default function MeetingDetailClient({
     setGeneratingCR(false);
   }
 
+  async function saveManualCompteRendu() {
+    if (!manualCR.trim()) return;
+    setSavingCR(true);
+    const res = await fetch("/api/reunions/meetings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: meeting.id, summary: manualCR.trim() }),
+    });
+    if (res.ok) {
+      setMeeting((prev) => ({ ...prev, summary: manualCR.trim() }));
+      setShowManualCR(false);
+      setManualCR("");
+      flash("success", "Compte rendu enregistré !");
+    } else {
+      flash("error", "Erreur lors de l'enregistrement.");
+    }
+    setSavingCR(false);
+  }
+
   // ---- Render ----
 
   return (
@@ -888,15 +910,47 @@ export default function MeetingDetailClient({
             </div>
           )}
 
-          {/* Generate CR button */}
+          {/* Compte rendu buttons */}
           {(isLive || meeting.status === "termine") && !meeting.summary && (
-            <button onClick={generateCompteRendu} disabled={generatingCR}
-              className="w-full py-3 bg-zinc-900 text-white rounded-2xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-              {generatingCR ? "Génération du compte rendu…" : "Générer le compte rendu avec l'IA"}
-            </button>
+            <div className="space-y-2">
+              {showManualCR ? (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-5">
+                  <h2 className="font-semibold text-zinc-900 mb-3">Ajouter un compte rendu</h2>
+                  <textarea
+                    value={manualCR}
+                    onChange={(e) => setManualCR(e.target.value)}
+                    rows={10}
+                    placeholder="Collez ou écrivez le compte rendu ici…"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-y"
+                  />
+                  <div className="flex items-center gap-2 mt-3">
+                    <button onClick={saveManualCompteRendu} disabled={savingCR || !manualCR.trim()}
+                      className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50">
+                      {savingCR ? "Enregistrement…" : "Enregistrer"}
+                    </button>
+                    <button onClick={() => { setShowManualCR(false); setManualCR(""); }}
+                      className="px-4 py-2 border border-zinc-200 rounded-xl text-sm hover:bg-zinc-50">
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowManualCR(true)}
+                  className="w-full py-3 bg-white border-2 border-zinc-200 text-zinc-700 rounded-2xl text-sm font-semibold hover:bg-zinc-50 flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                  </svg>
+                  Ajouter un compte rendu
+                </button>
+              )}
+              <button onClick={generateCompteRendu} disabled={generatingCR}
+                className="w-full py-3 bg-zinc-900 text-white rounded-2xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+                {generatingCR ? "Génération du compte rendu…" : "Générer le compte rendu avec l'IA"}
+              </button>
+            </div>
           )}
         </div>
 
