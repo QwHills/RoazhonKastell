@@ -317,6 +317,18 @@ const PROFILES: Record<string, ConseillerProfile> = {
     photo: "https://images.iadfrance.fr/profile-picture/50/0f/e1/500fe14e2cd9ce9be95b3ce753414649e907462e7b18b3b2bbaf663fb0d14040.png",
     city: "Le Rheu (35650)",
   },
+  "jean-francois.ronarc-h": {
+    photo: "https://images.iadfrance.fr/profile-picture/b3/86/cd/b386cdc1b228522dae325efefee476326a83d1c3f34172b4bfc8c742fbe20177.png",
+    city: "Rennes (35000)",
+  },
+  "maxime.cornot": {
+    photo: "https://images.iadfrance.fr/profile-picture/d8/39/eb/d839eb7fe6778052af91b03b945b1ef205f0678bb7225f9bd2ea2e261e1c5146.png",
+    city: "Rennes (35000)",
+  },
+  "francois.rubat": {
+    photo: "https://images.iadfrance.fr/profile-picture/e1/f7/da/e1f7da69041b62fc4d891ec411abca0d7cb4aa61de882160b6036e8a789beff2.png",
+    city: "Rennes (35000)",
+  },
 };
 
 export default PROFILES;

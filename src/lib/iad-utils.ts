@@ -40,6 +40,10 @@ export function buildIadMiniSiteUrl(firstName: string, lastName: string): string
   return `https://www.iadfrance.fr/conseiller-immobilier/${getIadSlug(firstName, lastName)}`;
 }
 
+export function capitalizeName(name: string): string {
+  return name.replace(/(^|[-'\s])(\p{L})/gu, (_, sep, letter) => sep + letter.toUpperCase());
+}
+
 export function getInitials(firstName: string, lastName: string): string {
   return `${(firstName[0] || "").toUpperCase()}${(lastName[0] || "").toUpperCase()}`;
 }

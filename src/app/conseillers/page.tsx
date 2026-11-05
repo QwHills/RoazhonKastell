@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { getIadSlug } from "@/lib/iad-utils";
+import { getIadSlug, capitalizeName } from "@/lib/iad-utils";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ConseillersSearch from "./ConseillersSearch";
@@ -33,8 +33,8 @@ export default async function ConseillersPage() {
     .order("first_name", { ascending: true });
 
   const members: ConseillerMember[] = (profiles || []).map((p) => ({
-    firstName: p.first_name as string,
-    lastName: p.last_name as string,
+    firstName: capitalizeName(p.first_name as string),
+    lastName: capitalizeName(p.last_name as string),
     slug: getIadSlug(p.first_name, p.last_name),
     roles: (p.roles as UserRole[]) || [],
     photoUrl: (p.photo_url as string | null) || null,

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { getIadSlug, buildIadMiniSiteUrl, getInitials } from "@/lib/iad-utils";
+import { getIadSlug, buildIadMiniSiteUrl, getInitials, capitalizeName } from "@/lib/iad-utils";
 import PROFILES from "@/data/conseillers-profiles";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -60,6 +60,8 @@ export default async function ConseillerPage({
   const bio = member.bio as string | null;
   const email = member.email as string | null;
   const phone = member.phone as string | null;
+  const firstName = capitalizeName(member.first_name);
+  const lastName = capitalizeName(member.last_name);
   const initials = getInitials(member.first_name, member.last_name);
   const miniSiteUrl = buildIadMiniSiteUrl(member.first_name, member.last_name);
 
@@ -86,7 +88,7 @@ export default async function ConseillerPage({
               {photoUrl ? (
                 <img
                   src={photoUrl}
-                  alt={`${member.first_name} ${member.last_name}`}
+                  alt={`${firstName} ${lastName}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -96,7 +98,7 @@ export default async function ConseillerPage({
 
             <div className="text-center sm:text-left flex-1">
               <h1 className="text-3xl font-bold text-zinc-900">
-                {member.first_name} {member.last_name}
+                {firstName} {lastName}
               </h1>
               <p className="text-zinc-500 mt-1">Conseiller immobilier IAD France</p>
 
