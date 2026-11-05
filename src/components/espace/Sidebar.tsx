@@ -82,7 +82,7 @@ function getNavGroups(profile: Profile): NavGroup[] {
       icon: <BriefcaseIcon />,
     });
   }
-  if (roles.includes("gestionnaire_evenements") || roles.includes("admin")) {
+  if (roles.includes("gestionnaire_evenements") || roles.includes("animateur_mardi") || roles.includes("admin")) {
     adminItems.push({ label: "Biens du mardi", href: "/espace/mardi-biens", icon: <BuildingIcon /> });
     adminItems.push({ label: "Événements", href: "/espace/evenements", icon: <CalendarIcon /> });
     adminItems.push({ label: "Locations", href: "/espace/locations", icon: <KeyIcon /> });

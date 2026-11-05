@@ -3,6 +3,7 @@ export type UserRole =
   | "partenaire"
   | "gestionnaire_membres"
   | "gestionnaire_evenements"
+  | "animateur_mardi"
   | "membre_executif"
   | "associe"
   | "admin";

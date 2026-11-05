@@ -42,6 +42,10 @@ export function canManageEvents(profile: Profile): boolean {
   return hasAnyRole(profile, ["admin", "gestionnaire_evenements"]);
 }
 
+export function canAnimateMardi(profile: Profile): boolean {
+  return hasAnyRole(profile, ["admin", "gestionnaire_evenements", "animateur_mardi"]);
+}
+
 export function canViewFinances(profile: Profile): boolean {
   return hasAnyRole(profile, ["admin", "associe"]);
 }
