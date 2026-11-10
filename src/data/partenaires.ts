@@ -147,4 +147,16 @@ export const partenaires: Partenaire[] = [
       { nom: "Kevin Lhermenier", telephone: "06 17 95 06 48", email: "envia35@envia.fr" },
     ],
   },
+
+  /* ── Services ── */
+  {
+    nom: "Imostar",
+    metier: "Services",
+    secteur: "Jeu de société immobilier personnalisé — cadeau client",
+    remuneration: false,
+    logo: "/logos/imostar.webp",
+    contacts: [
+      { nom: "Sylvain Riowal", telephone: "06 93 50 68 86", email: "contact@imostar.fr" },
+    ],
+  },
 ];
