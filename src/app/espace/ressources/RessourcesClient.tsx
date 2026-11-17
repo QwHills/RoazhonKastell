@@ -42,6 +42,7 @@ export default function RessourcesClient({
 }) {
   const [resources, setResources] = useState(initialResources);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
@@ -51,6 +52,44 @@ export default function RessourcesClient({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [filter, setFilter] = useState("");
 
+  function resetForm() {
+    setTitle("");
+    setCategory("");
+    setDescription("");
+    setVisibility("tous_membres");
+    setFile(null);
+    setShowForm(false);
+    setEditingId(null);
+  }
+
+  function startEdit(r: Resource) {
+    setEditingId(r.id);
+    setTitle(r.title);
+    setCategory(r.category || "");
+    setDescription(r.description || "");
+    setVisibility(r.visibility);
+    setFile(null);
+    setShowForm(true);
+    setMessage(null);
+  }
+
+  async function uploadFile(): Promise<string | null> {
+    if (!file) return null;
+    const supabase = createClient();
+    const ext = file.name.split(".").pop();
+    const path = `resources/${userId}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("photos")
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      setMessage({ type: "error", text: "Erreur lors de l'upload du fichier : " + uploadError.message });
+      return "__error__";
+    }
+    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
+    return urlData.publicUrl;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
@@ -58,48 +97,61 @@ export default function RessourcesClient({
     setMessage(null);
 
     const supabase = createClient();
-
-    let fileUrl: string | null = null;
-    if (file) {
-      const ext = file.name.split(".").pop();
-      const path = `resources/${userId}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("photos")
-        .upload(path, file, { upsert: true });
-
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
-        fileUrl = urlData.publicUrl;
-      }
-    }
-
-    const { data, error } = await supabase
-      .from("resources")
-      .insert({
-        title: title.trim(),
-        category: category || null,
-        description: description.trim() || null,
-        file_url: fileUrl,
-        visibility,
-        uploaded_by: userId,
-      })
-      .select("*, profiles!resources_uploaded_by_fkey(first_name, last_name)")
-      .single();
-
-    if (error) {
-      setMessage({ type: "error", text: error.message });
+    const fileUrl = await uploadFile();
+    if (fileUrl === "__error__") {
       setSaving(false);
       return;
     }
 
-    setResources((prev) => [data, ...prev]);
-    setShowForm(false);
-    setTitle("");
-    setCategory("");
-    setDescription("");
-    setFile(null);
-    setVisibility("tous_membres");
-    setMessage({ type: "success", text: "Ressource ajoutée !" });
+    if (editingId) {
+      const updates: Record<string, unknown> = {
+        title: title.trim(),
+        category: category || null,
+        description: description.trim() || null,
+        visibility,
+      };
+      if (fileUrl) updates.file_url = fileUrl;
+
+      const { data, error } = await supabase
+        .from("resources")
+        .update(updates)
+        .eq("id", editingId)
+        .select("*, profiles!resources_uploaded_by_fkey(first_name, last_name)")
+        .single();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        setSaving(false);
+        return;
+      }
+
+      setResources((prev) => prev.map((r) => (r.id === editingId ? data : r)));
+      setMessage({ type: "success", text: "Ressource modifiée !" });
+    } else {
+      const { data, error } = await supabase
+        .from("resources")
+        .insert({
+          title: title.trim(),
+          category: category || null,
+          description: description.trim() || null,
+          file_url: fileUrl,
+          visibility,
+          uploaded_by: userId,
+        })
+        .select("*, profiles!resources_uploaded_by_fkey(first_name, last_name)")
+        .single();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        setSaving(false);
+        return;
+      }
+
+      setResources((prev) => [data, ...prev]);
+      setMessage({ type: "success", text: "Ressource ajoutée !" });
+    }
+
+    resetForm();
     setSaving(false);
   }
 
@@ -127,7 +179,7 @@ export default function RessourcesClient({
         <h1 className="text-2xl font-bold text-zinc-900">Ressources</h1>
         {isAdmin && (
           <button
-            onClick={() => { setShowForm(true); setMessage(null); }}
+            onClick={() => { resetForm(); setShowForm(true); setMessage(null); }}
             className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800"
           >
             + Ajouter une ressource
@@ -147,7 +199,9 @@ export default function RessourcesClient({
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-2xl p-6 mb-8 space-y-4">
-          <h2 className="font-semibold text-zinc-900">Nouvelle ressource</h2>
+          <h2 className="font-semibold text-zinc-900">
+            {editingId ? "Modifier la ressource" : "Nouvelle ressource"}
+          </h2>
 
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Titre</label>
@@ -199,7 +253,9 @@ export default function RessourcesClient({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Fichier</label>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">
+              Fichier{editingId ? " (laisser vide pour garder l'actuel)" : ""}
+            </label>
             <input
               type="file"
               onChange={(e) => { if (e.target.files) setFile(e.target.files[0]); }}
@@ -209,9 +265,9 @@ export default function RessourcesClient({
 
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={saving} className="px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50">
-              {saving ? "Envoi…" : "Ajouter"}
+              {saving ? "Envoi…" : editingId ? "Enregistrer" : "Ajouter"}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 border border-zinc-200 rounded-xl text-sm hover:bg-zinc-50">
+            <button type="button" onClick={resetForm} className="px-5 py-2.5 border border-zinc-200 rounded-xl text-sm hover:bg-zinc-50">
               Annuler
             </button>
           </div>
@@ -269,23 +325,33 @@ export default function RessourcesClient({
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {r.file_url && (
+                  {r.file_url ? (
                     <a
                       href={r.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800"
                     >
-                      Télécharger
+                      Ouvrir
                     </a>
+                  ) : (
+                    <span className="px-3 py-2 text-xs text-zinc-400 italic">Aucun fichier</span>
                   )}
                   {isAdmin && (
-                    <button
-                      onClick={() => deleteResource(r.id)}
-                      className="px-3 py-2 border border-red-200 text-red-600 rounded-xl text-xs hover:bg-red-50"
-                    >
-                      Supprimer
-                    </button>
+                    <>
+                      <button
+                        onClick={() => startEdit(r)}
+                        className="px-3 py-2 border border-zinc-200 text-zinc-700 rounded-xl text-xs hover:bg-zinc-50"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => deleteResource(r.id)}
+                        className="px-3 py-2 border border-red-200 text-red-600 rounded-xl text-xs hover:bg-red-50"
+                      >
+                        Supprimer
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
