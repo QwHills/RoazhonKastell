@@ -75,19 +75,15 @@ export default function RessourcesClient({
 
   async function uploadFile(): Promise<string | null> {
     if (!file) return null;
-    const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const path = `resources/${userId}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("photos")
-      .upload(path, file, { upsert: true });
-
-    if (uploadError) {
-      setMessage({ type: "error", text: "Erreur lors de l'upload du fichier : " + uploadError.message });
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/resources/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage({ type: "error", text: data.error || "Erreur lors de l'upload du fichier" });
       return "__error__";
     }
-    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
-    return urlData.publicUrl;
+    return data.url;
   }
 
   async function handleSubmit(e: React.FormEvent) {
