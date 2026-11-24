@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, canManageEvents, hasRole } from "@/lib/supabase/auth";
+import { getCurrentUser, canAnimateMardi, hasRole } from "@/lib/supabase/auth";
 import { getAdminClient, getNextTuesdayDate } from "@/lib/mardi";
 
 export async function GET(request: Request) {
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   const admin = getAdminClient();
 
   if (action === "start") {
-    if (!canManageEvents(profile)) {
+    if (!canAnimateMardi(profile)) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "complete") {
-    if (!canManageEvents(profile)) {
+    if (!canAnimateMardi(profile)) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
 
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "resume") {
-    if (!canManageEvents(profile)) {
+    if (!canAnimateMardi(profile)) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
     const { error } = await admin
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
   }
 
   if (action === "reset") {
-    if (!canManageEvents(profile)) {
+    if (!canAnimateMardi(profile)) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
     }
     const { error } = await admin

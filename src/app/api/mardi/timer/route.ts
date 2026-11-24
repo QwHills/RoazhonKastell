@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, canManageEvents } from "@/lib/supabase/auth";
+import { getCurrentUser, canAnimateMardi } from "@/lib/supabase/auth";
 import { getAdminClient } from "@/lib/mardi";
 
 export async function POST(request: Request) {
   const profile = await getCurrentUser();
-  if (!profile || !canManageEvents(profile)) {
+  if (!profile || !canAnimateMardi(profile)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
